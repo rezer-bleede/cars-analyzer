@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { uniq, cmp, fmtPrice, fmtKM, groupBy, safeAvg, esc } from "../utils";
 
-const DEFAULT_SORT_KEY = "created_at_epoch_iso";
+const DEFAULT_SORT_KEY = "created_at_epoch_ms";
 const DEFAULT_SORT_DIR = "desc";
 
 export default function Overview({ data }) {
@@ -14,6 +14,15 @@ export default function Overview({ data }) {
 
   const cities = useMemo(() => uniq(data.map(d => d.city_inferred).filter(Boolean)).sort(), [data]);
   const bodies = useMemo(() => uniq(data.map(d => d.details_body_type).filter(Boolean)).sort(), [data]);
+
+  // Compute the latest day string across all rows: "YYYY-MM-DD"
+  const latestDay = useMemo(() => {
+    const days = data
+      .filter(d => Number.isFinite(d.created_at_epoch_ms))
+      .map(d => new Date(d.created_at_epoch_ms).toISOString().slice(0,10));
+    if (!days.length) return null;
+    return days.sort().at(-1);
+  }, [data]);
 
   useEffect(() => {
     let v = data.filter((d) => {
@@ -57,7 +66,7 @@ export default function Overview({ data }) {
             <option value="">All bodies</option>
             {bodies.map(b => <option key={b}>{b}</option>)}
           </select>
-          <button onClick={()=>{ setQ(""); setCity(""); setBody(""); }}>Reset</button>
+          <button onClick={()=>{ setQ(""); setCity(""); setBody(""); setSortKey(DEFAULT_SORT_KEY); setSortDir(DEFAULT_SORT_DIR); }}>Reset</button>
         </div>
         <div className="stats">
           <div className="stat"><b>Count</b><span>{kpi.count}</span></div>
@@ -78,6 +87,7 @@ export default function Overview({ data }) {
                 ["Body","details_body_type"],
                 ["Year","details_year"],
                 ["KM","details_kilometers"],
+                ["When","created_at_epoch_ms"],
                 ["Links", null]
               ].map(([label, key]) => (
                 <th key={label} onClick={key ? ()=>onHeaderClick(key) : undefined}>
@@ -88,23 +98,32 @@ export default function Overview({ data }) {
             </tr>
           </thead>
           <tbody>
-            {view.map(d => (
-              <tr key={d.id ?? Math.random()}>
-                <td>{d.id ?? ""}</td>
-                <td title={d.title_en || ""}>{esc(d.title_en)}</td>
-                <td>{fmtPrice(d.price)}</td>
-                <td>{esc(d.city_inferred)}</td>
-                <td>{esc(d.details_body_type)}</td>
-                <td>{d.details_year ?? ""}</td>
-                <td>{fmtKM(d.details_kilometers)}</td>
-                <td className="link">
-                  {d.url ? <a href={d.url} target="_blank" rel="noreferrer">Listing</a> : null}
-                  {d.permalink ? <> | <a href={d.permalink} target="_blank" rel="noreferrer">Contact</a></> : null}
-                </td>
-              </tr>
-            ))}
+            {view.map(d => {
+              const day = Number.isFinite(d.created_at_epoch_ms)
+                ? new Date(d.created_at_epoch_ms).toISOString().slice(0,10)
+                : null;
+              const isRecent = latestDay && day === latestDay;
+              return (
+                <tr key={d.id ?? Math.random()} className={isRecent ? "recent-day" : undefined}>
+                  <td>{d.id ?? ""}</td>
+                  <td title={d.title_en || ""}>
+                    {esc(d.title_en)} {isRecent && <span className="badge-recent">latest</span>}
+                  </td>
+                  <td>{fmtPrice(d.price)}</td>
+                  <td>{esc(d.city_inferred)}</td>
+                  <td>{esc(d.details_body_type)}</td>
+                  <td>{d.details_year ?? ""}</td>
+                  <td>{fmtKM(d.details_kilometers)}</td>
+                  <td>{d.created_at_epoch_ms ? new Date(d.created_at_epoch_ms).toLocaleString() : ""}</td>
+                  <td className="link">
+                    {d.url ? <a href={d.url} target="_blank" rel="noreferrer">Listing</a> : null}
+                    {d.permalink ? <> | <a href={d.permalink} target="_blank" rel="noreferrer">Contact</a></> : null}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
-          <tfoot><tr><td colSpan="8">Rows: {view.length}</td></tr></tfoot>
+          <tfoot><tr><td colSpan="9">Rows: {view.length}</td></tr></tfoot>
         </table>
       </section>
     </>

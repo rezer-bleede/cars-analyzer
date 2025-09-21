@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { NavLink, Routes, Route } from "react-router-dom";
 import Overview from "./pages/Overview.jsx";
 import Charts from "./pages/Charts.jsx";
-import { num } from "./utils";
+import { num, normalizeTimestamp } from "./utils";
 
 const R2_URL =
   import.meta.env.VITE_R2_JSON_URL?.trim() ||
@@ -21,11 +21,18 @@ export default function App() {
         const res = await fetch(R2_URL, { cache: "no-store" });
         if (!res.ok) throw new Error(`Fetch failed ${res.status}`);
         const rows = await res.json();
+
         rows.forEach((d) => {
           d.price = num(d.price);
           d.details_kilometers = num(d.details_kilometers);
           d.details_year = num(d.details_year);
+
+          // Normalize actual timestamp from listings.json (whichever field exists)
+          const ts = normalizeTimestamp(d);
+          d.created_at_epoch_ms = ts.ms;
+          d.created_at_iso = ts.iso;
         });
+
         setData(rows);
       } catch (e) {
         setErr(String(e.message || e));

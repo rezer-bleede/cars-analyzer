@@ -32,3 +32,15 @@ tbody tr:hover { background: #fafafa; }
 
 .nav, .nav-active { padding:6px 10px; border-radius:8px; text-decoration:none; border:1px solid var(--border); background:var(--bg); }
 .nav-active { background:#eef6ff; border-color:#c6defc; }
+
+/* highlight for rows/points from the most recent day */
+.recent-day {
+  background: #fff8cc;          /* soft yellow */
+}
+tbody tr.recent-day:hover {
+  background: #fff3a3;          /* slightly stronger on hover */
+}
+.badge-recent {
+  display:inline-block; margin-left:6px; padding:2px 6px;
+  font-size:11px; border-radius:999px; background:#ffe680; border:1px solid #e6d26b;
+}
