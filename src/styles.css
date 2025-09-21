@@ -29,3 +29,6 @@ tbody tr:hover { background: #fafafa; }
 
 .chart-card { margin: 16px 0; }
 .footer { color: var(--muted); font-size: 12px; margin-top: 12px; }
+
+.nav, .nav-active { padding:6px 10px; border-radius:8px; text-decoration:none; border:1px solid var(--border); background:var(--bg); }
+.nav-active { background:#eef6ff; border-color:#c6defc; }
