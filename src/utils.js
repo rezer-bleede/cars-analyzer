@@ -51,6 +51,8 @@ export const toEpochMs = (v) => {
 export const normalizeTimestamp = (row, candidates = [
   "created_at_epoch_ms",
   "created_at_epoch",
+  "created_at_epoch_iso",
+  "added_epoch_iso",
   "created_at",
   "scraped_at",
   "timestamp",
