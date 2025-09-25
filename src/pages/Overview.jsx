@@ -29,7 +29,7 @@ export default function Overview({ data }) {
       if (city && d.city_inferred !== city) return false;
       if (body && d.details_body_type !== body) return false;
       if (q) {
-        const blob = [d.title_en, d.city_inferred, d.details_body_type].join(" ").toLowerCase();
+        const blob = [d.title_en, d.details_make, d.city_inferred, d.details_body_type].join(" ").toLowerCase();
         if (!blob.includes(q.toLowerCase())) return false;
       }
       return true;
@@ -57,7 +57,7 @@ export default function Overview({ data }) {
       <header>
         <h1>Overview</h1>
         <div className="controls">
-          <input placeholder="Search title/city/body…" value={q} onChange={(e)=>setQ(e.target.value)} />
+          <input placeholder="Search brand/model/title/city/body…" value={q} onChange={(e)=>setQ(e.target.value)} />
           <select value={city} onChange={(e)=>setCity(e.target.value)}>
             <option value="">All cities</option>
             {cities.map(c => <option key={c}>{c}</option>)}
@@ -80,14 +80,12 @@ export default function Overview({ data }) {
           <thead>
             <tr>
               {[
-                ["ID","id"],
-                ["Title","title_en"],
-                ["Price","price"],
-                ["City","city_inferred"],
-                ["Body","details_body_type"],
-                ["Year","details_year"],
-                ["KM","details_kilometers"],
                 ["When","created_at_epoch_ms"],
+                ["Brand","details_make"],
+                ["Model","title_en"],
+                ["Year","details_year"],
+                ["Price","price"],
+                ["Title","title_en"],
                 ["Links", null]
               ].map(([label, key]) => (
                 <th key={label} onClick={key ? ()=>onHeaderClick(key) : undefined}>
@@ -103,18 +101,38 @@ export default function Overview({ data }) {
                 ? new Date(d.created_at_epoch_ms).toISOString().slice(0,10)
                 : null;
               const isRecent = latestDay && day === latestDay;
+              
+              // Extract model from title (first word after brand)
+              const getModel = (title, brand) => {
+                if (!title) return "";
+                const titleWords = title.split(" ");
+                if (brand && titleWords.length > 1) {
+                  const brandIndex = titleWords.findIndex(word => 
+                    word.toLowerCase().includes(brand.toLowerCase())
+                  );
+                  if (brandIndex >= 0 && titleWords[brandIndex + 1]) {
+                    return titleWords[brandIndex + 1];
+                  }
+                }
+                return titleWords[1] || titleWords[0] || "";
+              };
+              
+              const brand = d.details_make || "";
+              const model = getModel(d.title_en, brand);
+              
               return (
                 <tr key={d.id ?? Math.random()} className={isRecent ? "recent-day" : undefined}>
-                  <td>{d.id ?? ""}</td>
-                  <td title={d.title_en || ""}>
-                    {esc(d.title_en)} {isRecent && <span className="badge-recent">latest</span>}
+                  <td className="timestamp">
+                    {d.created_at_epoch_ms ? new Date(d.created_at_epoch_ms).toLocaleString() : ""}
+                    {isRecent && <span className="badge-recent">latest</span>}
                   </td>
-                  <td>{fmtPrice(d.price)}</td>
-                  <td>{esc(d.city_inferred)}</td>
-                  <td>{esc(d.details_body_type)}</td>
+                  <td className="brand">{esc(brand)}</td>
+                  <td className="model">{esc(model)}</td>
                   <td>{d.details_year ?? ""}</td>
-                  <td>{fmtKM(d.details_kilometers)}</td>
-                  <td>{d.created_at_epoch_ms ? new Date(d.created_at_epoch_ms).toLocaleString() : ""}</td>
+                  <td className="price">{fmtPrice(d.price)}</td>
+                  <td title={d.title_en || ""}>
+                    {esc(d.title_en)}
+                  </td>
                   <td className="link">
                     {d.url ? <a href={d.url} target="_blank" rel="noreferrer">Listing</a> : null}
                     {d.permalink ? <> | <a href={d.permalink} target="_blank" rel="noreferrer">Contact</a></> : null}
@@ -123,7 +141,7 @@ export default function Overview({ data }) {
               );
             })}
           </tbody>
-          <tfoot><tr><td colSpan="9">Rows: {view.length}</td></tr></tfoot>
+          <tfoot><tr><td colSpan="7">Rows: {view.length}</td></tr></tfoot>
         </table>
       </section>
     </>
