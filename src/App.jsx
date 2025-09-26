@@ -45,23 +45,46 @@ export default function App() {
   if (loading) return <div className="container"><p>Loading…</p></div>;
   if (err) return <div className="container"><p style={{color:"#b00020"}}>Error: {err}</p></div>;
 
+  // Calculate stats for header
+  const stats = {
+    totalListings: data.length,
+    avgPrice: data.length > 0 ? Math.round(data.reduce((sum, d) => sum + (d.price || 0), 0) / data.length) : 0,
+    cities: new Set(data.map(d => d.city_inferred).filter(Boolean)).size
+  };
+
   return (
     <div className="min-vh-100 bg-light">
       {/* Header */}
       <header className="bg-white shadow-sm border-bottom">
         <div className="container-fluid">
-          <div className="row align-items-center py-3">
-            <div className="col-md-6">
-              <h1 className="h3 mb-0 text-primary fw-bold">🚗 Used Cars Dashboard</h1>
-              <p className="text-muted mb-0">Real-time car listings analysis</p>
+          <div className="row align-items-center py-2">
+            <div className="col-md-4">
+              <h1 className="h4 mb-0 text-primary fw-bold">🚗 Used Cars Dashboard</h1>
+              <p className="text-muted small mb-0">Real-time car listings analysis</p>
             </div>
-            <div className="col-md-6">
+            <div className="col-md-4">
+              <div className="row text-center">
+                <div className="col-4">
+                  <div className="text-primary fw-bold fs-5">{stats.totalListings.toLocaleString()}</div>
+                  <div className="text-muted small">Total Listings</div>
+                </div>
+                <div className="col-4">
+                  <div className="text-success fw-bold fs-5">AED {stats.avgPrice.toLocaleString()}</div>
+                  <div className="text-muted small">Avg Price</div>
+                </div>
+                <div className="col-4">
+                  <div className="text-info fw-bold fs-5">{stats.cities}</div>
+                  <div className="text-muted small">Cities</div>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-4">
               <nav className="d-flex justify-content-end gap-2">
                 <NavLink 
                   to="/" 
                   end 
                   className={({isActive}) => 
-                    `btn ${isActive ? 'btn-primary' : 'btn-outline-primary'} px-3 py-2`
+                    `btn ${isActive ? 'btn-primary' : 'btn-outline-primary'} btn-sm px-3 py-2`
                   }
                 >
                   📊 Overview
@@ -69,7 +92,7 @@ export default function App() {
                 <NavLink 
                   to="/charts" 
                   className={({isActive}) => 
-                    `btn ${isActive ? 'btn-primary' : 'btn-outline-primary'} px-3 py-2`
+                    `btn ${isActive ? 'btn-primary' : 'btn-outline-primary'} btn-sm px-3 py-2`
                   }
                 >
                   📈 Charts
@@ -81,7 +104,7 @@ export default function App() {
       </header>
 
       {/* Main Content */}
-      <main className="container-fluid py-4">
+      <main className="container-fluid py-3">
         <Routes>
           <Route path="/" element={<Overview data={data} />} />
           <Route path="/charts" element={<Charts data={data} />} />

@@ -31,7 +31,7 @@ export default function Overview({ data }) {
       if (city && d.city_inferred !== city) return false;
       if (body && d.details_body_type !== body) return false;
       if (q) {
-        const blob = [d.title_en, d.details_make, d.city_inferred, d.details_body_type].join(" ").toLowerCase();
+        const blob = [d.title_en, d.city_inferred, d.details_body_type].join(" ").toLowerCase();
         if (!blob.includes(q.toLowerCase())) return false;
       }
       return true;
@@ -68,34 +68,6 @@ export default function Overview({ data }) {
 
   return (
     <div className="container-fluid">
-      {/* Overview Stats Cards */}
-      <div className="row mb-4">
-        <div className="col-md-4">
-          <div className="card border-0 shadow-sm h-100">
-            <div className="card-body text-center">
-              <h5 className="card-title text-muted mb-2">Total Listings</h5>
-              <h2 className="text-primary fw-bold">{kpi.count.toLocaleString()}</h2>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-4">
-          <div className="card border-0 shadow-sm h-100">
-            <div className="card-body text-center">
-              <h5 className="card-title text-muted mb-2">Average Price</h5>
-              <h2 className="text-success fw-bold">{fmtPrice(kpi.avg)}</h2>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-4">
-          <div className="card border-0 shadow-sm h-100">
-            <div className="card-body text-center">
-              <h5 className="card-title text-muted mb-2">Cities</h5>
-              <h2 className="text-info fw-bold">{kpi.uniqueCities}</h2>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Filters */}
       <div className="card border-0 shadow-sm mb-4">
         <div className="card-body">
@@ -105,7 +77,7 @@ export default function Overview({ data }) {
               <input 
                 type="text" 
                 className="form-control" 
-                placeholder="Search brand/model/title/city/body…" 
+                placeholder="Search title/location/body type…" 
                 value={q} 
                 onChange={(e)=>setQ(e.target.value)} 
               />
@@ -163,6 +135,7 @@ export default function Overview({ data }) {
                     ["Model","title_en"],
                     ["Year","details_year"],
                     ["Price","price"],
+                    ["Location","city_inferred"],
                     ["Title","title_en"],
                     ["Links", null]
                   ].map(([label, key]) => (
@@ -184,23 +157,40 @@ export default function Overview({ data }) {
                     : null;
                   const isRecent = latestDay && day === latestDay;
                   
-                  // Extract model from title (first word after brand)
-                  const getModel = (title, brand) => {
-                    if (!title) return "";
+                  // Extract brand and model from title
+                  const extractBrandAndModel = (title) => {
+                    if (!title) return { brand: "", model: "" };
                     const titleWords = title.split(" ");
-                    if (brand && titleWords.length > 1) {
-                      const brandIndex = titleWords.findIndex(word => 
-                        word.toLowerCase().includes(brand.toLowerCase())
-                      );
-                      if (brandIndex >= 0 && titleWords[brandIndex + 1]) {
-                        return titleWords[brandIndex + 1];
-                      }
+                    if (titleWords.length === 0) return { brand: "", model: "" };
+                    
+                    // Common car brands to look for
+                    const brands = [
+                      'Ford', 'Nissan', 'Toyota', 'Honda', 'Hyundai', 'Mazda', 'Mitsubishi', 
+                      'Opel', 'Peugeot', 'Kia', 'BMW', 'Mercedes', 'Audi', 'Volkswagen',
+                      'Chevrolet', 'Dodge', 'Jeep', 'Lexus', 'Infiniti', 'Acura', 'Subaru',
+                      'Suzuki', 'Isuzu', 'GMC', 'Cadillac', 'Lincoln', 'Buick', 'Chrysler'
+                    ];
+                    
+                    const firstWord = titleWords[0];
+                    const foundBrand = brands.find(brand => 
+                      firstWord.toLowerCase().includes(brand.toLowerCase()) ||
+                      brand.toLowerCase().includes(firstWord.toLowerCase())
+                    );
+                    
+                    if (foundBrand) {
+                      return {
+                        brand: foundBrand,
+                        model: titleWords[1] || ""
+                      };
                     }
-                    return titleWords[1] || titleWords[0] || "";
+                    
+                    return {
+                      brand: firstWord,
+                      model: titleWords[1] || ""
+                    };
                   };
                   
-                  const brand = d.details_make || "";
-                  const model = getModel(d.title_en, brand);
+                  const { brand, model } = extractBrandAndModel(d.title_en);
                   
                   return (
                     <tr key={d.id ?? Math.random()} className={isRecent ? "table-warning" : ""}>
@@ -212,6 +202,7 @@ export default function Overview({ data }) {
                       <td className="text-muted">{esc(model)}</td>
                       <td>{d.details_year ?? ""}</td>
                       <td className="fw-bold text-success">{fmtPrice(d.price)}</td>
+                      <td className="text-info">{esc(d.city_inferred)}</td>
                       <td title={d.title_en || ""} className="text-truncate" style={{maxWidth: '200px'}}>
                         {esc(d.title_en)}
                       </td>
