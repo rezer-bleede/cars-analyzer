@@ -306,30 +306,85 @@ tbody tr.recent-day:hover {
   font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
 }
 
+/* Bootstrap enhancements */
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.table th.cursor-pointer:hover {
+  background-color: #f8f9fa;
+}
+
+/* Custom pagination styling */
+.pagination .page-link {
+  border-radius: 6px;
+  margin: 0 2px;
+  border: 1px solid #dee2e6;
+}
+
+.pagination .page-item.active .page-link {
+  background-color: #0d6efd;
+  border-color: #0d6efd;
+}
+
+/* Enhanced table styling */
+.table-hover tbody tr:hover {
+  background-color: rgba(13, 110, 253, 0.05);
+}
+
+/* Badge enhancements */
+.badge {
+  font-size: 0.75em;
+  font-weight: 600;
+}
+
+/* Card enhancements */
+.card {
+  transition: all 0.2s ease-in-out;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Button enhancements */
+.btn {
+  transition: all 0.2s ease-in-out;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+/* Form control enhancements */
+.form-control:focus,
+.form-select:focus {
+  border-color: #86b7fe;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
-  .container {
+  .container-fluid {
     padding: 16px;
   }
   
-  header {
-    padding: 20px;
+  .card-body {
+    padding: 1rem;
   }
   
-  h1 {
-    font-size: 24px;
+  .table-responsive {
+    font-size: 0.875rem;
   }
   
-  .controls {
+  .pagination {
+    justify-content: center;
+  }
+  
+  .d-flex.justify-content-between {
     flex-direction: column;
-  }
-  
-  .controls > * {
-    width: 100%;
-  }
-  
-  th, td {
-    padding: 12px 8px;
-    font-size: 13px;
+    gap: 1rem;
+    text-align: center;
   }
 }

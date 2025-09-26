@@ -11,6 +11,8 @@ export default function Overview({ data }) {
   const [sortKey, setSortKey] = useState(DEFAULT_SORT_KEY);
   const [sortDir, setSortDir] = useState(DEFAULT_SORT_DIR);
   const [view, setView] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(20);
 
   const cities = useMemo(() => uniq(data.map(d => d.city_inferred).filter(Boolean)).sort(), [data]);
   const bodies = useMemo(() => uniq(data.map(d => d.details_body_type).filter(Boolean)).sort(), [data]);
@@ -37,6 +39,7 @@ export default function Overview({ data }) {
     const dir = sortDir === "asc" ? 1 : -1;
     v.sort((a,b) => cmp(a[sortKey], b[sortKey]) * dir);
     setView(v);
+    setCurrentPage(1); // Reset to first page when filters change
   }, [data, q, city, body, sortKey, sortDir]);
 
   const kpi = useMemo(() => {
@@ -46,6 +49,17 @@ export default function Overview({ data }) {
     return { count, avg, uniqueCities };
   }, [view]);
 
+  // Pagination calculations
+  const totalPages = Math.ceil(view.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentItems = view.slice(startIndex, endIndex);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const onHeaderClick = (key) => {
     if (!key) return;
     if (sortKey === key) setSortDir(sortDir === "asc" ? "desc" : "asc");
@@ -53,97 +67,232 @@ export default function Overview({ data }) {
   };
 
   return (
-    <>
-      <header>
-        <h1>Overview</h1>
-        <div className="controls">
-          <input placeholder="Search brand/model/title/city/body…" value={q} onChange={(e)=>setQ(e.target.value)} />
-          <select value={city} onChange={(e)=>setCity(e.target.value)}>
-            <option value="">All cities</option>
-            {cities.map(c => <option key={c}>{c}</option>)}
-          </select>
-          <select value={body} onChange={(e)=>setBody(e.target.value)}>
-            <option value="">All bodies</option>
-            {bodies.map(b => <option key={b}>{b}</option>)}
-          </select>
-          <button onClick={()=>{ setQ(""); setCity(""); setBody(""); setSortKey(DEFAULT_SORT_KEY); setSortDir(DEFAULT_SORT_DIR); }}>Reset</button>
+    <div className="container-fluid">
+      {/* Overview Stats Cards */}
+      <div className="row mb-4">
+        <div className="col-md-4">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-body text-center">
+              <h5 className="card-title text-muted mb-2">Total Listings</h5>
+              <h2 className="text-primary fw-bold">{kpi.count.toLocaleString()}</h2>
+            </div>
+          </div>
         </div>
-        <div className="stats">
-          <div className="stat"><b>Count</b><span>{kpi.count}</span></div>
-          <div className="stat"><b>Avg Price</b><span>{fmtPrice(kpi.avg)}</span></div>
-          <div className="stat"><b>Cities</b><span>{kpi.uniqueCities}</span></div>
+        <div className="col-md-4">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-body text-center">
+              <h5 className="card-title text-muted mb-2">Average Price</h5>
+              <h2 className="text-success fw-bold">{fmtPrice(kpi.avg)}</h2>
+            </div>
+          </div>
         </div>
-      </header>
+        <div className="col-md-4">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-body text-center">
+              <h5 className="card-title text-muted mb-2">Cities</h5>
+              <h2 className="text-info fw-bold">{kpi.uniqueCities}</h2>
+            </div>
+          </div>
+        </div>
+      </div>
 
-      <section className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              {[
-                ["When","created_at_epoch_ms"],
-                ["Brand","details_make"],
-                ["Model","title_en"],
-                ["Year","details_year"],
-                ["Price","price"],
-                ["Title","title_en"],
-                ["Links", null]
-              ].map(([label, key]) => (
-                <th key={label} onClick={key ? ()=>onHeaderClick(key) : undefined}>
-                  {label}
-                  {key && ( (sortKey===key) ? (sortDir==="asc" ? " ▲" : " ▼") : "" )}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {view.map(d => {
-              const day = Number.isFinite(d.created_at_epoch_ms)
-                ? new Date(d.created_at_epoch_ms).toISOString().slice(0,10)
-                : null;
-              const isRecent = latestDay && day === latestDay;
-              
-              // Extract model from title (first word after brand)
-              const getModel = (title, brand) => {
-                if (!title) return "";
-                const titleWords = title.split(" ");
-                if (brand && titleWords.length > 1) {
-                  const brandIndex = titleWords.findIndex(word => 
-                    word.toLowerCase().includes(brand.toLowerCase())
-                  );
-                  if (brandIndex >= 0 && titleWords[brandIndex + 1]) {
-                    return titleWords[brandIndex + 1];
-                  }
-                }
-                return titleWords[1] || titleWords[0] || "";
-              };
-              
-              const brand = d.details_make || "";
-              const model = getModel(d.title_en, brand);
-              
-              return (
-                <tr key={d.id ?? Math.random()} className={isRecent ? "recent-day" : undefined}>
-                  <td className="timestamp">
-                    {d.created_at_epoch_ms ? new Date(d.created_at_epoch_ms).toLocaleString() : ""}
-                    {isRecent && <span className="badge-recent">latest</span>}
-                  </td>
-                  <td className="brand">{esc(brand)}</td>
-                  <td className="model">{esc(model)}</td>
-                  <td>{d.details_year ?? ""}</td>
-                  <td className="price">{fmtPrice(d.price)}</td>
-                  <td title={d.title_en || ""}>
-                    {esc(d.title_en)}
-                  </td>
-                  <td className="link">
-                    {d.url ? <a href={d.url} target="_blank" rel="noreferrer">Listing</a> : null}
-                    {d.permalink ? <> | <a href={d.permalink} target="_blank" rel="noreferrer">Contact</a></> : null}
-                  </td>
+      {/* Filters */}
+      <div className="card border-0 shadow-sm mb-4">
+        <div className="card-body">
+          <div className="row g-3">
+            <div className="col-md-4">
+              <label className="form-label fw-semibold">Search</label>
+              <input 
+                type="text" 
+                className="form-control" 
+                placeholder="Search brand/model/title/city/body…" 
+                value={q} 
+                onChange={(e)=>setQ(e.target.value)} 
+              />
+            </div>
+            <div className="col-md-3">
+              <label className="form-label fw-semibold">City</label>
+              <select 
+                className="form-select" 
+                value={city} 
+                onChange={(e)=>setCity(e.target.value)}
+              >
+                <option value="">All cities</option>
+                {cities.map(c => <option key={c}>{c}</option>)}
+              </select>
+            </div>
+            <div className="col-md-3">
+              <label className="form-label fw-semibold">Body Type</label>
+              <select 
+                className="form-select" 
+                value={body} 
+                onChange={(e)=>setBody(e.target.value)}
+              >
+                <option value="">All bodies</option>
+                {bodies.map(b => <option key={b}>{b}</option>)}
+              </select>
+            </div>
+            <div className="col-md-2 d-flex align-items-end">
+              <button 
+                className="btn btn-outline-secondary w-100" 
+                onClick={()=>{ 
+                  setQ(""); 
+                  setCity(""); 
+                  setBody(""); 
+                  setSortKey(DEFAULT_SORT_KEY); 
+                  setSortDir(DEFAULT_SORT_DIR); 
+                }}
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="card border-0 shadow-sm">
+        <div className="card-body p-0">
+          <div className="table-responsive">
+            <table className="table table-hover mb-0">
+              <thead className="table-light">
+                <tr>
+                  {[
+                    ["When","created_at_epoch_ms"],
+                    ["Brand","details_make"],
+                    ["Model","title_en"],
+                    ["Year","details_year"],
+                    ["Price","price"],
+                    ["Title","title_en"],
+                    ["Links", null]
+                  ].map(([label, key]) => (
+                    <th 
+                      key={label} 
+                      className={key ? "cursor-pointer" : ""}
+                      onClick={key ? ()=>onHeaderClick(key) : undefined}
+                    >
+                      {label}
+                      {key && ( (sortKey===key) ? (sortDir==="asc" ? " ▲" : " ▼") : "" )}
+                    </th>
+                  ))}
                 </tr>
-              );
-            })}
-          </tbody>
-          <tfoot><tr><td colSpan="7">Rows: {view.length}</td></tr></tfoot>
-        </table>
-      </section>
-    </>
+              </thead>
+              <tbody>
+                {currentItems.map(d => {
+                  const day = Number.isFinite(d.created_at_epoch_ms)
+                    ? new Date(d.created_at_epoch_ms).toISOString().slice(0,10)
+                    : null;
+                  const isRecent = latestDay && day === latestDay;
+                  
+                  // Extract model from title (first word after brand)
+                  const getModel = (title, brand) => {
+                    if (!title) return "";
+                    const titleWords = title.split(" ");
+                    if (brand && titleWords.length > 1) {
+                      const brandIndex = titleWords.findIndex(word => 
+                        word.toLowerCase().includes(brand.toLowerCase())
+                      );
+                      if (brandIndex >= 0 && titleWords[brandIndex + 1]) {
+                        return titleWords[brandIndex + 1];
+                      }
+                    }
+                    return titleWords[1] || titleWords[0] || "";
+                  };
+                  
+                  const brand = d.details_make || "";
+                  const model = getModel(d.title_en, brand);
+                  
+                  return (
+                    <tr key={d.id ?? Math.random()} className={isRecent ? "table-warning" : ""}>
+                      <td className="text-muted small">
+                        {d.created_at_epoch_ms ? new Date(d.created_at_epoch_ms).toLocaleString() : ""}
+                        {isRecent && <span className="badge bg-warning text-dark ms-2">Latest</span>}
+                      </td>
+                      <td className="fw-semibold">{esc(brand)}</td>
+                      <td className="text-muted">{esc(model)}</td>
+                      <td>{d.details_year ?? ""}</td>
+                      <td className="fw-bold text-success">{fmtPrice(d.price)}</td>
+                      <td title={d.title_en || ""} className="text-truncate" style={{maxWidth: '200px'}}>
+                        {esc(d.title_en)}
+                      </td>
+                      <td>
+                        {d.url ? (
+                          <a href={d.url} target="_blank" rel="noreferrer" className="btn btn-sm btn-outline-primary me-1">
+                            Listing
+                          </a>
+                        ) : null}
+                        {d.permalink ? (
+                          <a href={d.permalink} target="_blank" rel="noreferrer" className="btn btn-sm btn-outline-secondary">
+                            Contact
+                          </a>
+                        ) : null}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="d-flex justify-content-between align-items-center mt-4">
+          <div className="text-muted">
+            Showing {startIndex + 1} to {Math.min(endIndex, view.length)} of {view.length} entries
+          </div>
+          <nav>
+            <ul className="pagination pagination-sm mb-0">
+              <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
+                <button 
+                  className="page-link" 
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </button>
+              </li>
+              
+              {/* Page numbers */}
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => {
+                if (
+                  page === 1 || 
+                  page === totalPages || 
+                  (page >= currentPage - 2 && page <= currentPage + 2)
+                ) {
+                  return (
+                    <li key={page} className={`page-item ${currentPage === page ? 'active' : ''}`}>
+                      <button 
+                        className="page-link" 
+                        onClick={() => handlePageChange(page)}
+                      >
+                        {page}
+                      </button>
+                    </li>
+                  );
+                } else if (
+                  page === currentPage - 3 || 
+                  page === currentPage + 3
+                ) {
+                  return <li key={page} className="page-item disabled"><span className="page-link">...</span></li>;
+                }
+                return null;
+              })}
+              
+              <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
+                <button 
+                  className="page-link" 
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </button>
+              </li>
+            </ul>
+          </nav>
+        </div>
+      )}
+    </div>
   );
 }

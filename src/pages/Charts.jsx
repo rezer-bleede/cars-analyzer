@@ -45,59 +45,87 @@ export default function Charts({ data }) {
   const latestPoint = latestDate ? byDate.filter(p => p.date === latestDate) : [];
 
   return (
-    <>
-      <h1>Charts</h1>
-
-      <section className="card chart-card">
-        <h3>Price vs Year</h3>
-        <div style={{width:"100%", height:360}}>
-          <ResponsiveContainer>
-            <ScatterChart>
-              <CartesianGrid />
-              <XAxis dataKey="x" name="Year" />
-              <YAxis dataKey="y" name="Price (AED)" />
-              <Tooltip cursor={{ strokeDasharray: '3 3' }} formatter={(v, n) => [n === "y" ? `AED ${v}` : v, n === "y" ? "Price" : "Year"]} />
-              <Scatter data={scatterData} />
-            </ScatterChart>
-          </ResponsiveContainer>
+    <div className="container-fluid">
+      <div className="row">
+        <div className="col-12">
+          <div className="card border-0 shadow-sm mb-4">
+            <div className="card-header bg-white border-0 pb-0">
+              <h3 className="card-title h4 mb-0">Price vs Year</h3>
+            </div>
+            <div className="card-body">
+              <div style={{width:"100%", height:400}}>
+                <ResponsiveContainer>
+                  <ScatterChart>
+                    <CartesianGrid />
+                    <XAxis dataKey="x" name="Year" />
+                    <YAxis dataKey="y" name="Price (AED)" />
+                    <Tooltip cursor={{ strokeDasharray: '3 3' }} formatter={(v, n) => [n === "y" ? `AED ${v}` : v, n === "y" ? "Price" : "Year"]} />
+                    <Scatter data={scatterData} />
+                  </ScatterChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
         </div>
-      </section>
+      </div>
 
-      <section className="card chart-card">
-        <h3>Average Price by Make (Top 15)</h3>
-        <div style={{width:"100%", height:360}}>
-          <ResponsiveContainer>
-            <BarChart data={byMake}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="make" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="avgPrice" />
-            </BarChart>
-          </ResponsiveContainer>
+      <div className="row">
+        <div className="col-12">
+          <div className="card border-0 shadow-sm mb-4">
+            <div className="card-header bg-white border-0 pb-0">
+              <h3 className="card-title h4 mb-0">Average Price by Make (Top 15)</h3>
+            </div>
+            <div className="card-body">
+              <div style={{width:"100%", height:400}}>
+                <ResponsiveContainer>
+                  <BarChart data={byMake}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="make" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="avgPrice" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
         </div>
-      </section>
+      </div>
 
-      <section className="card chart-card">
-        <h3>Average Price Over Time (by day)</h3>
-        <div style={{width:"100%", height:360}}>
-          <ResponsiveContainer>
-            <LineChart data={byDate}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" />
-              <YAxis />
-              <Tooltip />
-              <Line dataKey="avgPrice" dot={false} />
-              {/* highlight the most recent day's point */}
-              {latestPoint.length > 0 && (
-                <Scatter data={latestPoint} />
+      <div className="row">
+        <div className="col-12">
+          <div className="card border-0 shadow-sm">
+            <div className="card-header bg-white border-0 pb-0">
+              <h3 className="card-title h4 mb-0">Average Price Over Time (by day)</h3>
+            </div>
+            <div className="card-body">
+              <div style={{width:"100%", height:400}}>
+                <ResponsiveContainer>
+                  <LineChart data={byDate}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <Tooltip />
+                    <Line dataKey="avgPrice" dot={false} />
+                    {/* highlight the most recent day's point */}
+                    {latestPoint.length > 0 && (
+                      <Scatter data={latestPoint} />
+                    )}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              {latestDate && (
+                <div className="text-center mt-3">
+                  <span className="badge bg-warning text-dark fs-6">
+                    Highlighted latest day: <strong>{latestDate}</strong>
+                  </span>
+                </div>
               )}
-            </LineChart>
-          </ResponsiveContainer>
+            </div>
+          </div>
         </div>
-        {latestDate && <div className="footer">Highlighted latest day: <b>{latestDate}</b></div>}
-      </section>
-    </>
+      </div>
+    </div>
   );
 }
 

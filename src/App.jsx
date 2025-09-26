@@ -46,16 +46,47 @@ export default function App() {
   if (err) return <div className="container"><p style={{color:"#b00020"}}>Error: {err}</p></div>;
 
   return (
-    <div className="container">
-      <nav style={{display:"flex", gap:12, margin:"12px 0"}}>
-        <NavLink to="/" end className={({isActive}) => isActive ? "nav-active" : "nav"}>Overview</NavLink>
-        <NavLink to="/charts" className={({isActive}) => isActive ? "nav-active" : "nav"}>Charts</NavLink>
-      </nav>
+    <div className="min-vh-100 bg-light">
+      {/* Header */}
+      <header className="bg-white shadow-sm border-bottom">
+        <div className="container-fluid">
+          <div className="row align-items-center py-3">
+            <div className="col-md-6">
+              <h1 className="h3 mb-0 text-primary fw-bold">🚗 Used Cars Dashboard</h1>
+              <p className="text-muted mb-0">Real-time car listings analysis</p>
+            </div>
+            <div className="col-md-6">
+              <nav className="d-flex justify-content-end gap-2">
+                <NavLink 
+                  to="/" 
+                  end 
+                  className={({isActive}) => 
+                    `btn ${isActive ? 'btn-primary' : 'btn-outline-primary'} px-3 py-2`
+                  }
+                >
+                  📊 Overview
+                </NavLink>
+                <NavLink 
+                  to="/charts" 
+                  className={({isActive}) => 
+                    `btn ${isActive ? 'btn-primary' : 'btn-outline-primary'} px-3 py-2`
+                  }
+                >
+                  📈 Charts
+                </NavLink>
+              </nav>
+            </div>
+          </div>
+        </div>
+      </header>
 
-      <Routes>
-        <Route path="/" element={<Overview data={data} />} />
-        <Route path="/charts" element={<Charts data={data} />} />
-      </Routes>
+      {/* Main Content */}
+      <main className="container-fluid py-4">
+        <Routes>
+          <Route path="/" element={<Overview data={data} />} />
+          <Route path="/charts" element={<Charts data={data} />} />
+        </Routes>
+      </main>
     </div>
   );
 }
