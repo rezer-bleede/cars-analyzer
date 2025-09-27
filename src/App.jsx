@@ -18,6 +18,15 @@ export default function App() {
   const [bodyFilter, setBodyFilter] = useState("");
   const [resetSignal, setResetSignal] = useState(0);
 
+  const cityOptions = useMemo(
+    () => [...new Set(data.map((d) => d.city_inferred).filter(Boolean))].sort(),
+    [data]
+  );
+  const bodyOptions = useMemo(
+    () => [...new Set(data.map((d) => d.details_body_type).filter(Boolean))].sort(),
+    [data]
+  );
+
   useEffect(() => {
     (async () => {
       try {
@@ -62,15 +71,6 @@ export default function App() {
     avgPrice: data.length > 0 ? Math.round(data.reduce((sum, d) => sum + (d.price || 0), 0) / data.length) : 0,
     cities: new Set(data.map(d => d.city_inferred).filter(Boolean)).size
   };
-
-  const cityOptions = useMemo(
-    () => [...new Set(data.map((d) => d.city_inferred).filter(Boolean))].sort(),
-    [data]
-  );
-  const bodyOptions = useMemo(
-    () => [...new Set(data.map((d) => d.details_body_type).filter(Boolean))].sort(),
-    [data]
-  );
 
   const handleReset = () => {
     setSearch("");
