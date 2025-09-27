@@ -142,7 +142,7 @@ const locationSelectors = [
   "location_segments",
   "location_parts",
   "location_values",
-  (row) => [row?.city_inferred, row?.area_inferred || row?.details_area || row?.area],
+  (row) => [row?.city_inferred, row?.neighbourhood_en, row?.area_inferred || row?.details_area || row?.area],
   "city_inferred"
 ];
 

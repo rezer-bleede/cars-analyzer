@@ -32,9 +32,14 @@ export default function Overview({ data }) {
       if (body && d.details_body_type !== body) return false;
       if (q) {
         const blob = [
+          d.details_make,
+          d.details_model,
           d.brand,
           d.model,
           d.location_full,
+          d.neighbourhood_en,
+          d.details_regional_specs,
+          d.details_seller_type,
           d.title_en,
           d.city_inferred,
           d.details_body_type
@@ -138,11 +143,14 @@ export default function Overview({ data }) {
                 <tr>
                   {[
                     ["When","created_at_epoch_ms"],
-                    ["Brand","brand"],
-                    ["Model","model"],
+                    ["Make","details_make"],
+                    ["Model","details_model"],
                     ["Year","details_year"],
                     ["Price","price"],
                     ["Location","location_full"],
+                    ["Neighbourhood","neighbourhood_en"],
+                    ["Regional Specs","details_regional_specs"],
+                    ["Seller Type","details_seller_type"],
                     ["Title","title_en"],
                     ["Links", null]
                   ].map(([label, key]) => (
@@ -167,6 +175,11 @@ export default function Overview({ data }) {
                   const brand = d.brand || "";
                   const model = d.model || "";
                   const location = d.location_full || d.city_inferred || "";
+                  const make = d.details_make || brand;
+                  const modelDisplay = d.details_model || model;
+                  const neighbourhood = d.neighbourhood_en || "";
+                  const regionalSpecs = d.details_regional_specs || "";
+                  const sellerType = d.details_seller_type || "";
                   
                   return (
                     <tr key={d.id ?? Math.random()} className={isRecent ? "table-warning" : ""}>
@@ -174,11 +187,14 @@ export default function Overview({ data }) {
                         {d.created_at_epoch_ms ? new Date(d.created_at_epoch_ms).toLocaleString() : ""}
                         {isRecent && <span className="badge bg-warning text-dark ms-2">Latest</span>}
                       </td>
-                      <td className="fw-semibold">{esc(brand)}</td>
-                      <td className="text-muted">{esc(model)}</td>
+                      <td className="fw-semibold">{esc(make)}</td>
+                      <td className="text-muted">{esc(modelDisplay)}</td>
                       <td>{d.details_year ?? ""}</td>
                       <td className="fw-bold text-success">{fmtPrice(d.price)}</td>
                       <td className="text-info">{esc(location)}</td>
+                      <td>{esc(neighbourhood)}</td>
+                      <td>{esc(regionalSpecs)}</td>
+                      <td>{esc(sellerType)}</td>
                       <td title={d.title_en || ""} className="text-truncate" style={{maxWidth: '200px'}}>
                         {esc(d.title_en)}
                       </td>

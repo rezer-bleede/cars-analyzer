@@ -31,6 +31,9 @@ export default function App() {
           d.model = deriveModel(d) || "";
           d.location_full = deriveFullLocation(d) || "";
 
+          d.details_make = d.details_make || d.brand;
+          d.details_model = d.details_model || d.model;
+
           // Normalize actual timestamp from listings.json (whichever field exists)
           const ts = normalizeTimestamp(d);
           d.created_at_epoch_ms = ts.ms;

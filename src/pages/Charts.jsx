@@ -15,14 +15,14 @@ export default function Charts({ data }) {
         y: Number(d.price),
         title: d.title_en ?? "",
         city: d.city_inferred ?? "",
-        make: d.brand || ""
+        make: d.details_make || d.brand || ""
       }));
   }, [data]);
 
   // Avg price by Make (Top 15)
   const byMake = useMemo(() => {
     const rows = data.map(d => ({
-      make: d.brand || "Unknown",
+      make: d.details_make || d.brand || "Unknown",
       price: Number(d.price)
     })).filter(r => Number.isFinite(r.price));
     const g = groupBy(rows, r => r.make);

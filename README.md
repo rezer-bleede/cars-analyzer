@@ -72,10 +72,13 @@ The application expects JSON data with the following structure:
     "details_make": "Ford",
     "details_model": "Fiesta",
     "location_path": ["Dubai", "Deira"],
+    "neighbourhood_en": "Al Safa 2",
     "details_body_type": "Hatchback",
     "details_year": 2012,
     "details_kilometers": 220000,
     "details_transmission_type": "Automatic Transmission",
+    "details_regional_specs": "GCC Specs",
+    "details_seller_type": "Dealer",
     "has_phone_number": true,
     "has_whatsapp_number": true,
     "permalink": "https://example.com/s/DOBH4Yw",
@@ -90,7 +93,8 @@ The application expects JSON data with the following structure:
 
 - `brand` is sourced from `details_make` (with fallbacks for similarly named keys).
 - `model` reads from `details_model`/`details_model_trim` and related keys without relying on `title_en`.
-- `location_full` is rendered from the richest available location hierarchy (`location_path`, `location_full`, etc.) and falls back to `city_inferred`.
+- `location_full` is rendered from the richest available location hierarchy (`location_path`, `location_full`, etc.) and falls back to `city_inferred` + `neighbourhood_en` when present.
+- The listings table surfaces `details_make`, `details_model`, `neighbourhood_en`, `details_regional_specs`, and `details_seller_type` directly for clarity.
 
 ## 📱 Usage
 
