@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { NavLink, Routes, Route } from "react-router-dom";
 import Overview from "./pages/Overview.jsx";
 import Charts from "./pages/Charts.jsx";
@@ -14,6 +14,9 @@ export default function App() {
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [cityFilter, setCityFilter] = useState("");
+  const [bodyFilter, setBodyFilter] = useState("");
+  const [resetSignal, setResetSignal] = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -60,19 +63,35 @@ export default function App() {
     cities: new Set(data.map(d => d.city_inferred).filter(Boolean)).size
   };
 
+  const cityOptions = useMemo(
+    () => [...new Set(data.map((d) => d.city_inferred).filter(Boolean))].sort(),
+    [data]
+  );
+  const bodyOptions = useMemo(
+    () => [...new Set(data.map((d) => d.details_body_type).filter(Boolean))].sort(),
+    [data]
+  );
+
+  const handleReset = () => {
+    setSearch("");
+    setCityFilter("");
+    setBodyFilter("");
+    setResetSignal((n) => n + 1);
+  };
+
   return (
     <div className="min-vh-100 bg-light">
       {/* Header */}
       <header className="bg-white shadow-sm border-bottom sticky-top" style={{ zIndex: 1030 }}>
         <div className="container-fluid">
-          <div className="d-flex flex-wrap align-items-center gap-3 py-2">
-            <div className="d-flex flex-column me-3">
+          <div className="d-flex align-items-center gap-3 py-1 flex-wrap flex-lg-nowrap">
+            <div className="d-flex flex-column me-3 flex-shrink-0">
               <h1 className="h5 mb-0 text-primary fw-bold">🚗 Used Cars Dashboard</h1>
               <span className="text-muted small">Real-time car listings analysis</span>
             </div>
 
-            <div className="d-flex align-items-center gap-3 ms-auto flex-wrap justify-content-end w-100 w-lg-auto">
-              <div className="d-flex align-items-center gap-3 order-2 order-lg-1 text-muted small">
+            <div className="d-flex align-items-center gap-3 ms-auto flex-wrap flex-lg-nowrap justify-content-end w-100">
+              <div className="d-flex align-items-center gap-3 order-3 order-lg-1 text-muted small flex-shrink-0">
                 <div className="text-end">
                   <div className="fw-semibold text-primary">{stats.totalListings.toLocaleString()}</div>
                   <div>Total</div>
@@ -88,7 +107,7 @@ export default function App() {
               </div>
 
               <form
-                className="order-1 order-lg-2 flex-grow-1 flex-lg-grow-0"
+                className="order-1 flex-grow-1 flex-lg-grow-0"
                 onSubmit={(e) => e.preventDefault()}
                 role="search"
               >
@@ -98,12 +117,42 @@ export default function App() {
                   placeholder="Search make, model, location…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  style={{ minWidth: "220px", maxWidth: "320px" }}
+                  style={{ minWidth: "200px", maxWidth: "260px" }}
                   aria-label="Search listings"
                 />
               </form>
 
-              <nav className="d-flex align-items-center gap-2 order-3">
+              <div className="d-flex align-items-center gap-2 order-2 flex-shrink-0">
+                <select
+                  className="form-select form-select-sm"
+                  value={cityFilter}
+                  onChange={(e) => setCityFilter(e.target.value)}
+                  style={{ minWidth: "150px" }}
+                  aria-label="Filter by city"
+                >
+                  <option value="">All cities</option>
+                  {cityOptions.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+                <select
+                  className="form-select form-select-sm"
+                  value={bodyFilter}
+                  onChange={(e) => setBodyFilter(e.target.value)}
+                  style={{ minWidth: "150px" }}
+                  aria-label="Filter by body type"
+                >
+                  <option value="">All bodies</option>
+                  {bodyOptions.map((b) => (
+                    <option key={b} value={b}>{b}</option>
+                  ))}
+                </select>
+                <button type="button" className="btn btn-outline-secondary btn-sm" onClick={handleReset}>
+                  Reset
+                </button>
+              </div>
+
+              <nav className="d-flex align-items-center gap-2 order-4 order-lg-3 flex-shrink-0">
                 <NavLink
                   to="/"
                   end
@@ -130,7 +179,18 @@ export default function App() {
       {/* Main Content */}
       <main className="container-fluid py-3">
         <Routes>
-          <Route path="/" element={<Overview data={data} searchQuery={search} onSearchChange={setSearch} />} />
+          <Route
+            path="/"
+            element={
+              <Overview
+                data={data}
+                searchQuery={search}
+                cityFilter={cityFilter}
+                bodyFilter={bodyFilter}
+                resetSignal={resetSignal}
+              />
+            }
+          />
           <Route path="/charts" element={<Charts data={data} />} />
         </Routes>
       </main>

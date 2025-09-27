@@ -1,20 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { uniq, cmp, fmtPrice, safeAvg, esc } from "../utils";
+import { cmp, fmtPrice, esc } from "../utils";
 
 const DEFAULT_SORT_KEY = "created_at_epoch_ms";
 const DEFAULT_SORT_DIR = "desc";
 
-export default function Overview({ data, searchQuery = "", onSearchChange }) {
-  const [city, setCity] = useState("");
-  const [body, setBody] = useState("");
+export default function Overview({ data, searchQuery = "", cityFilter = "", bodyFilter = "", resetSignal = 0 }) {
   const [sortKey, setSortKey] = useState(DEFAULT_SORT_KEY);
   const [sortDir, setSortDir] = useState(DEFAULT_SORT_DIR);
   const [view, setView] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
-
-  const cities = useMemo(() => uniq(data.map(d => d.city_inferred).filter(Boolean)).sort(), [data]);
-  const bodies = useMemo(() => uniq(data.map(d => d.details_body_type).filter(Boolean)).sort(), [data]);
 
   // Compute the latest day string across all rows: "YYYY-MM-DD"
   const latestDay = useMemo(() => {
@@ -27,8 +22,8 @@ export default function Overview({ data, searchQuery = "", onSearchChange }) {
 
   useEffect(() => {
     let v = data.filter((d) => {
-      if (city && d.city_inferred !== city) return false;
-      if (body && d.details_body_type !== body) return false;
+      if (cityFilter && d.city_inferred !== cityFilter) return false;
+      if (bodyFilter && d.details_body_type !== bodyFilter) return false;
       const q = searchQuery.trim().toLowerCase();
       if (q) {
         const blob = [
@@ -52,14 +47,13 @@ export default function Overview({ data, searchQuery = "", onSearchChange }) {
     v.sort((a,b) => cmp(a[sortKey], b[sortKey]) * dir);
     setView(v);
     setCurrentPage(1); // Reset to first page when filters change
-  }, [data, searchQuery, city, body, sortKey, sortDir]);
+  }, [data, searchQuery, cityFilter, bodyFilter, sortKey, sortDir]);
 
-  const kpi = useMemo(() => {
-    const count = view.length;
-    const avg = safeAvg(view.map(d => d.price));
-    const uniqueCities = uniq(view.map(d => d.city_inferred).filter(Boolean)).length;
-    return { count, avg, uniqueCities };
-  }, [view]);
+  useEffect(() => {
+    setSortKey(DEFAULT_SORT_KEY);
+    setSortDir(DEFAULT_SORT_DIR);
+    setCurrentPage(1);
+  }, [resetSignal]);
 
   // Pagination calculations
   const totalPages = Math.ceil(view.length / itemsPerPage);
@@ -80,55 +74,11 @@ export default function Overview({ data, searchQuery = "", onSearchChange }) {
 
   return (
     <div className="container-fluid">
-      {/* Filters */}
-      <div className="card border-0 shadow-sm mb-4">
-        <div className="card-body">
-          <div className="row g-3">
-            <div className="col-md-4">
-              <label className="form-label fw-semibold">City</label>
-              <select 
-                className="form-select" 
-                value={city} 
-                onChange={(e)=>setCity(e.target.value)}
-              >
-                <option value="">All cities</option>
-                {cities.map(c => <option key={c}>{c}</option>)}
-              </select>
-            </div>
-            <div className="col-md-4">
-              <label className="form-label fw-semibold">Body Type</label>
-              <select 
-                className="form-select" 
-                value={body} 
-                onChange={(e)=>setBody(e.target.value)}
-              >
-                <option value="">All bodies</option>
-                {bodies.map(b => <option key={b}>{b}</option>)}
-              </select>
-            </div>
-            <div className="col-md-4 d-flex align-items-end">
-              <button 
-                className="btn btn-outline-secondary w-100" 
-                onClick={()=>{ 
-                  onSearchChange?.(""); 
-                  setCity(""); 
-                  setBody(""); 
-                  setSortKey(DEFAULT_SORT_KEY); 
-                  setSortDir(DEFAULT_SORT_DIR); 
-                }}
-              >
-                Reset
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Table */}
       <div className="card border-0 shadow-sm">
         <div className="card-body p-0">
-          <div className="table-responsive">
-            <table className="table table-hover mb-0">
+          <div className="table-responsive" style={{ overflowX: "auto" }}>
+            <table className="table table-hover table-striped mb-0 text-nowrap align-middle" style={{ minWidth: "1200px" }}>
               <thead className="table-light">
                 <tr>
                   {[
@@ -161,7 +111,7 @@ export default function Overview({ data, searchQuery = "", onSearchChange }) {
                     ? new Date(d.created_at_epoch_ms).toISOString().slice(0,10)
                     : null;
                   const isRecent = latestDay && day === latestDay;
-                  
+
                   const brand = d.brand || "";
                   const model = d.model || "";
                   const location = d.location_full || d.city_inferred || "";
@@ -170,9 +120,25 @@ export default function Overview({ data, searchQuery = "", onSearchChange }) {
                   const neighbourhood = d.neighbourhood_en || "";
                   const regionalSpecs = d.details_regional_specs || "";
                   const sellerType = d.details_seller_type || "";
-                  
+                  const primaryLink = d.url || d.permalink || "";
+                  const clickable = Boolean(primaryLink);
+
                   return (
-                    <tr key={d.id ?? Math.random()} className={isRecent ? "table-warning" : ""}>
+                    <tr
+                      key={d.id ?? Math.random()}
+                      className={isRecent ? "table-warning" : ""}
+                      onClick={() => { if (clickable) window.open(primaryLink, "_blank", "noopener"); }}
+                      onKeyDown={(e) => {
+                        if (!clickable) return;
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          window.open(primaryLink, "_blank", "noopener");
+                        }
+                      }}
+                      role={clickable ? "link" : undefined}
+                      tabIndex={clickable ? 0 : undefined}
+                      style={{ cursor: clickable ? "pointer" : "default" }}
+                    >
                       <td className="text-muted small">
                         {d.created_at_epoch_ms ? new Date(d.created_at_epoch_ms).toLocaleString() : ""}
                         {isRecent && <span className="badge bg-warning text-dark ms-2">Latest</span>}
@@ -190,12 +156,24 @@ export default function Overview({ data, searchQuery = "", onSearchChange }) {
                       </td>
                       <td>
                         {d.url ? (
-                          <a href={d.url} target="_blank" rel="noreferrer" className="btn btn-sm btn-outline-primary me-1">
+                          <a
+                            href={d.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="btn btn-sm btn-outline-primary me-1"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             Listing
                           </a>
                         ) : null}
                         {d.permalink ? (
-                          <a href={d.permalink} target="_blank" rel="noreferrer" className="btn btn-sm btn-outline-secondary">
+                          <a
+                            href={d.permalink}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="btn btn-sm btn-outline-secondary"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             Contact
                           </a>
                         ) : null}
