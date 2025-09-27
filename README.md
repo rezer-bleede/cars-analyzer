@@ -12,6 +12,7 @@ A modern, responsive web application for analyzing used car listings with real-t
 - **🎨 Modern UI/UX**: Bootstrap 5 with industry-standard design patterns
 - **🕒 Latest Listings Highlight**: Automatically highlights newest entries
 - **📍 Location Intelligence**: City-based filtering and analysis
+- **🔝 Sticky Header Search**: Compact top bar with always-on search and quick navigation
 
 ## 🚀 Quick Start
 
@@ -99,7 +100,7 @@ The application expects JSON data with the following structure:
 ## 📱 Usage
 
 ### Overview Page
-- **Search & Filter**: Use the search bar and dropdowns to filter listings
+- **Search & Filter**: Use the sticky header search plus dropdowns to filter listings
 - **Sort**: Click column headers to sort by different criteria
 - **Pagination**: Navigate through pages of results
 - **Latest Highlighting**: Newest listings are automatically highlighted

@@ -1,11 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { uniq, cmp, fmtPrice, groupBy, safeAvg, esc } from "../utils";
+import { uniq, cmp, fmtPrice, safeAvg, esc } from "../utils";
 
 const DEFAULT_SORT_KEY = "created_at_epoch_ms";
 const DEFAULT_SORT_DIR = "desc";
 
-export default function Overview({ data }) {
-  const [q, setQ] = useState("");
+export default function Overview({ data, searchQuery = "", onSearchChange }) {
   const [city, setCity] = useState("");
   const [body, setBody] = useState("");
   const [sortKey, setSortKey] = useState(DEFAULT_SORT_KEY);
@@ -30,6 +29,7 @@ export default function Overview({ data }) {
     let v = data.filter((d) => {
       if (city && d.city_inferred !== city) return false;
       if (body && d.details_body_type !== body) return false;
+      const q = searchQuery.trim().toLowerCase();
       if (q) {
         const blob = [
           d.details_make,
@@ -44,7 +44,7 @@ export default function Overview({ data }) {
           d.city_inferred,
           d.details_body_type
         ].join(" ").toLowerCase();
-        if (!blob.includes(q.toLowerCase())) return false;
+        if (!blob.includes(q)) return false;
       }
       return true;
     });
@@ -52,7 +52,7 @@ export default function Overview({ data }) {
     v.sort((a,b) => cmp(a[sortKey], b[sortKey]) * dir);
     setView(v);
     setCurrentPage(1); // Reset to first page when filters change
-  }, [data, q, city, body, sortKey, sortDir]);
+  }, [data, searchQuery, city, body, sortKey, sortDir]);
 
   const kpi = useMemo(() => {
     const count = view.length;
@@ -85,16 +85,6 @@ export default function Overview({ data }) {
         <div className="card-body">
           <div className="row g-3">
             <div className="col-md-4">
-              <label className="form-label fw-semibold">Search</label>
-              <input 
-                type="text" 
-                className="form-control" 
-                placeholder="Search title/location/body type…" 
-                value={q} 
-                onChange={(e)=>setQ(e.target.value)} 
-              />
-            </div>
-            <div className="col-md-3">
               <label className="form-label fw-semibold">City</label>
               <select 
                 className="form-select" 
@@ -105,7 +95,7 @@ export default function Overview({ data }) {
                 {cities.map(c => <option key={c}>{c}</option>)}
               </select>
             </div>
-            <div className="col-md-3">
+            <div className="col-md-4">
               <label className="form-label fw-semibold">Body Type</label>
               <select 
                 className="form-select" 
@@ -116,11 +106,11 @@ export default function Overview({ data }) {
                 {bodies.map(b => <option key={b}>{b}</option>)}
               </select>
             </div>
-            <div className="col-md-2 d-flex align-items-end">
+            <div className="col-md-4 d-flex align-items-end">
               <button 
                 className="btn btn-outline-secondary w-100" 
                 onClick={()=>{ 
-                  setQ(""); 
+                  onSearchChange?.(""); 
                   setCity(""); 
                   setBody(""); 
                   setSortKey(DEFAULT_SORT_KEY); 

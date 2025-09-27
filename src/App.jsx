@@ -13,6 +13,7 @@ export default function App() {
   const [data, setData] = useState([]);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -62,44 +63,60 @@ export default function App() {
   return (
     <div className="min-vh-100 bg-light">
       {/* Header */}
-      <header className="bg-white shadow-sm border-bottom">
+      <header className="bg-white shadow-sm border-bottom sticky-top" style={{ zIndex: 1030 }}>
         <div className="container-fluid">
-          <div className="row align-items-center py-2">
-            <div className="col-md-4">
-              <h1 className="h4 mb-0 text-primary fw-bold">🚗 Used Cars Dashboard</h1>
-              <p className="text-muted small mb-0">Real-time car listings analysis</p>
+          <div className="d-flex flex-wrap align-items-center gap-3 py-2">
+            <div className="d-flex flex-column me-3">
+              <h1 className="h5 mb-0 text-primary fw-bold">🚗 Used Cars Dashboard</h1>
+              <span className="text-muted small">Real-time car listings analysis</span>
             </div>
-            <div className="col-md-4">
-              <div className="row text-center">
-                <div className="col-4">
-                  <div className="text-primary fw-bold fs-5">{stats.totalListings.toLocaleString()}</div>
-                  <div className="text-muted small">Total Listings</div>
+
+            <div className="d-flex align-items-center gap-3 ms-auto flex-wrap justify-content-end w-100 w-lg-auto">
+              <div className="d-flex align-items-center gap-3 order-2 order-lg-1 text-muted small">
+                <div className="text-end">
+                  <div className="fw-semibold text-primary">{stats.totalListings.toLocaleString()}</div>
+                  <div>Total</div>
                 </div>
-                <div className="col-4">
-                  <div className="text-success fw-bold fs-5">AED {stats.avgPrice.toLocaleString()}</div>
-                  <div className="text-muted small">Avg Price</div>
+                <div className="text-end">
+                  <div className="fw-semibold text-success">AED {stats.avgPrice.toLocaleString()}</div>
+                  <div>Avg Price</div>
                 </div>
-                <div className="col-4">
-                  <div className="text-info fw-bold fs-5">{stats.cities}</div>
-                  <div className="text-muted small">Cities</div>
+                <div className="text-end">
+                  <div className="fw-semibold text-info">{stats.cities}</div>
+                  <div>Cities</div>
                 </div>
               </div>
-            </div>
-            <div className="col-md-4">
-              <nav className="d-flex justify-content-end gap-2">
-                <NavLink 
-                  to="/" 
-                  end 
-                  className={({isActive}) => 
-                    `btn ${isActive ? 'btn-primary' : 'btn-outline-primary'} btn-sm px-3 py-2`
+
+              <form
+                className="order-1 order-lg-2 flex-grow-1 flex-lg-grow-0"
+                onSubmit={(e) => e.preventDefault()}
+                role="search"
+              >
+                <input
+                  type="search"
+                  className="form-control form-control-sm"
+                  placeholder="Search make, model, location…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  style={{ minWidth: "220px", maxWidth: "320px" }}
+                  aria-label="Search listings"
+                />
+              </form>
+
+              <nav className="d-flex align-items-center gap-2 order-3">
+                <NavLink
+                  to="/"
+                  end
+                  className={({ isActive }) =>
+                    `btn ${isActive ? "btn-primary" : "btn-outline-primary"} btn-sm px-3`
                   }
                 >
                   📊 Overview
                 </NavLink>
-                <NavLink 
-                  to="/charts" 
-                  className={({isActive}) => 
-                    `btn ${isActive ? 'btn-primary' : 'btn-outline-primary'} btn-sm px-3 py-2`
+                <NavLink
+                  to="/charts"
+                  className={({ isActive }) =>
+                    `btn ${isActive ? "btn-primary" : "btn-outline-primary"} btn-sm px-3`
                   }
                 >
                   📈 Charts
@@ -113,7 +130,7 @@ export default function App() {
       {/* Main Content */}
       <main className="container-fluid py-3">
         <Routes>
-          <Route path="/" element={<Overview data={data} />} />
+          <Route path="/" element={<Overview data={data} searchQuery={search} onSearchChange={setSearch} />} />
           <Route path="/charts" element={<Charts data={data} />} />
         </Routes>
       </main>
