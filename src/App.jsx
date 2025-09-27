@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { NavLink, Routes, Route } from "react-router-dom";
 import Overview from "./pages/Overview.jsx";
 import Charts from "./pages/Charts.jsx";
-import { num, normalizeTimestamp } from "./utils";
+import { num, normalizeTimestamp, deriveBrand, deriveModel, deriveFullLocation } from "./utils";
 
 const R2_URL =
   import.meta.env.VITE_R2_JSON_URL?.trim() ||
@@ -26,6 +26,10 @@ export default function App() {
           d.price = num(d.price);
           d.details_kilometers = num(d.details_kilometers);
           d.details_year = num(d.details_year);
+
+          d.brand = deriveBrand(d) || "";
+          d.model = deriveModel(d) || "";
+          d.location_full = deriveFullLocation(d) || "";
 
           // Normalize actual timestamp from listings.json (whichever field exists)
           const ts = normalizeTimestamp(d);

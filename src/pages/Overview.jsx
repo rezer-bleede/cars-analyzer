@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { uniq, cmp, fmtPrice, fmtKM, groupBy, safeAvg, esc } from "../utils";
+import { uniq, cmp, fmtPrice, groupBy, safeAvg, esc } from "../utils";
 
 const DEFAULT_SORT_KEY = "created_at_epoch_ms";
 const DEFAULT_SORT_DIR = "desc";
@@ -31,7 +31,14 @@ export default function Overview({ data }) {
       if (city && d.city_inferred !== city) return false;
       if (body && d.details_body_type !== body) return false;
       if (q) {
-        const blob = [d.title_en, d.city_inferred, d.details_body_type].join(" ").toLowerCase();
+        const blob = [
+          d.brand,
+          d.model,
+          d.location_full,
+          d.title_en,
+          d.city_inferred,
+          d.details_body_type
+        ].join(" ").toLowerCase();
         if (!blob.includes(q.toLowerCase())) return false;
       }
       return true;
@@ -131,11 +138,11 @@ export default function Overview({ data }) {
                 <tr>
                   {[
                     ["When","created_at_epoch_ms"],
-                    ["Brand","details_make"],
-                    ["Model","title_en"],
+                    ["Brand","brand"],
+                    ["Model","model"],
                     ["Year","details_year"],
                     ["Price","price"],
-                    ["Location","city_inferred"],
+                    ["Location","location_full"],
                     ["Title","title_en"],
                     ["Links", null]
                   ].map(([label, key]) => (
@@ -157,40 +164,9 @@ export default function Overview({ data }) {
                     : null;
                   const isRecent = latestDay && day === latestDay;
                   
-                  // Extract brand and model from title
-                  const extractBrandAndModel = (title) => {
-                    if (!title) return { brand: "", model: "" };
-                    const titleWords = title.split(" ");
-                    if (titleWords.length === 0) return { brand: "", model: "" };
-                    
-                    // Common car brands to look for
-                    const brands = [
-                      'Ford', 'Nissan', 'Toyota', 'Honda', 'Hyundai', 'Mazda', 'Mitsubishi', 
-                      'Opel', 'Peugeot', 'Kia', 'BMW', 'Mercedes', 'Audi', 'Volkswagen',
-                      'Chevrolet', 'Dodge', 'Jeep', 'Lexus', 'Infiniti', 'Acura', 'Subaru',
-                      'Suzuki', 'Isuzu', 'GMC', 'Cadillac', 'Lincoln', 'Buick', 'Chrysler'
-                    ];
-                    
-                    const firstWord = titleWords[0];
-                    const foundBrand = brands.find(brand => 
-                      firstWord.toLowerCase().includes(brand.toLowerCase()) ||
-                      brand.toLowerCase().includes(firstWord.toLowerCase())
-                    );
-                    
-                    if (foundBrand) {
-                      return {
-                        brand: foundBrand,
-                        model: titleWords[1] || ""
-                      };
-                    }
-                    
-                    return {
-                      brand: firstWord,
-                      model: titleWords[1] || ""
-                    };
-                  };
-                  
-                  const { brand, model } = extractBrandAndModel(d.title_en);
+                  const brand = d.brand || "";
+                  const model = d.model || "";
+                  const location = d.location_full || d.city_inferred || "";
                   
                   return (
                     <tr key={d.id ?? Math.random()} className={isRecent ? "table-warning" : ""}>
@@ -202,7 +178,7 @@ export default function Overview({ data }) {
                       <td className="text-muted">{esc(model)}</td>
                       <td>{d.details_year ?? ""}</td>
                       <td className="fw-bold text-success">{fmtPrice(d.price)}</td>
-                      <td className="text-info">{esc(d.city_inferred)}</td>
+                      <td className="text-info">{esc(location)}</td>
                       <td title={d.title_en || ""} className="text-truncate" style={{maxWidth: '200px'}}>
                         {esc(d.title_en)}
                       </td>

@@ -30,6 +30,126 @@ export const safeAvg = (xs) => {
   return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
 };
 
+const textParts = (value) => {
+  if (value == null) return [];
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed ? [trimmed] : [];
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return [String(value)];
+  }
+  if (Array.isArray(value)) {
+    return value.flatMap(textParts);
+  }
+  if (typeof value === "object") {
+    const candidates = [];
+    const favoredKeys = [
+      "full",
+      "name",
+      "label",
+      "value",
+      "text",
+      "title",
+      "display"
+    ];
+    for (const key of favoredKeys) {
+      if (key in value) candidates.push(value[key]);
+    }
+    if ("path" in value) candidates.push(value.path);
+    if ("hierarchy" in value) candidates.push(value.hierarchy);
+    if ("values" in value) candidates.push(value.values);
+    if ("parts" in value) candidates.push(value.parts);
+    if (value.city || value.area) candidates.push([value.city, value.area]);
+    return candidates.flatMap(textParts);
+  }
+  return [];
+};
+
+const dedupeParts = (parts) => {
+  const seen = new Set();
+  const out = [];
+  for (const part of parts) {
+    if (!part) continue;
+    const normalized = part.replace(/\s+/g, " ").trim();
+    if (!normalized) continue;
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(normalized);
+  }
+  return out;
+};
+
+const pickText = (row, selectors, { joiner = " " } = {}) => {
+  for (const selector of selectors) {
+    const raw = typeof selector === "function" ? selector(row) : row?.[selector];
+    const parts = dedupeParts(textParts(raw));
+    if (parts.length) return joiner === false ? parts[0] : parts.join(joiner);
+  }
+  return "";
+};
+
+const brandSelectors = [
+  "brand",
+  "details_make",
+  "details_brand",
+  "details_make_name",
+  "make",
+  "make_name",
+  "vehicle_make",
+  "meta_make",
+  "listing_make",
+  (row) => row?.details?.make,
+  (row) => row?.details?.brand
+];
+
+const modelSelectors = [
+  "model",
+  "details_model",
+  "details_model_trim",
+  "details_model_name",
+  "details_trim",
+  "details_variant",
+  "model_name",
+  "model_trim",
+  "vehicle_model",
+  "meta_model",
+  "listing_model",
+  (row) => row?.details?.model,
+  (row) => row?.details?.trim
+];
+
+const locationSelectors = [
+  "location_full",
+  "full_location",
+  "listing_location",
+  "location_text",
+  "location_name",
+  "meta_location",
+  "details_location",
+  "address",
+  "address_full",
+  (row) => row?.location?.full,
+  (row) => row?.location?.name,
+  (row) => row?.location?.label,
+  (row) => row?.location?.text,
+  (row) => row?.location?.display,
+  (row) => row?.location?.path,
+  (row) => row?.location?.hierarchy,
+  "location_path",
+  "location_hierarchy",
+  "location_segments",
+  "location_parts",
+  "location_values",
+  (row) => [row?.city_inferred, row?.area_inferred || row?.details_area || row?.area],
+  "city_inferred"
+];
+
+export const deriveBrand = (row) => pickText(row, brandSelectors, { joiner: " " });
+export const deriveModel = (row) => pickText(row, modelSelectors, { joiner: " " });
+export const deriveFullLocation = (row) => pickText(row, locationSelectors, { joiner: " -> " });
+
 /** Parse any common timestamp representation to epoch ms (number) */
 export const toEpochMs = (v) => {
   if (v == null) return null;

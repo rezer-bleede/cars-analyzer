@@ -15,14 +15,14 @@ export default function Charts({ data }) {
         y: Number(d.price),
         title: d.title_en ?? "",
         city: d.city_inferred ?? "",
-        make: d.details_make || guessMake(d)
+        make: d.brand || ""
       }));
   }, [data]);
 
   // Avg price by Make (Top 15)
   const byMake = useMemo(() => {
     const rows = data.map(d => ({
-      make: (d.details_make || guessMake(d) || "Unknown"),
+      make: d.brand || "Unknown",
       price: Number(d.price)
     })).filter(r => Number.isFinite(r.price));
     const g = groupBy(rows, r => r.make);
@@ -127,11 +127,4 @@ export default function Charts({ data }) {
       </div>
     </div>
   );
-}
-
-function guessMake(d) {
-  const t = (d.title_en || "").trim();
-  const w = t.split(/\s+/)[0];
-  if (!w) return null;
-  return w[0].toUpperCase() + w.slice(1).toLowerCase();
 }

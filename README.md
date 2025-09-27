@@ -69,6 +69,9 @@ The application expects JSON data with the following structure:
     "title_en": "Ford Fiesta 2012 GCC",
     "price": 5700,
     "city_inferred": "Dubai",
+    "details_make": "Ford",
+    "details_model": "Fiesta",
+    "location_path": ["Dubai", "Deira"],
     "details_body_type": "Hatchback",
     "details_year": 2012,
     "details_kilometers": 220000,
@@ -82,6 +85,12 @@ The application expects JSON data with the following structure:
   }
 ]
 ```
+
+### Field mapping
+
+- `brand` is sourced from `details_make` (with fallbacks for similarly named keys).
+- `model` reads from `details_model`/`details_model_trim` and related keys without relying on `title_en`.
+- `location_full` is rendered from the richest available location hierarchy (`location_path`, `location_full`, etc.) and falls back to `city_inferred`.
 
 ## 📱 Usage
 
