@@ -75,8 +75,8 @@ The application expects JSON data with the following structure:
     "details_transmission_type": "Automatic Transmission",
     "has_phone_number": true,
     "has_whatsapp_number": true,
-    "permalink": "https://dubizzle.com/s/DOBH4Yw",
-    "url": "https://dubai.dubizzle.com/motors/used-cars/ford/fiesta/2025/9/16/...",
+    "permalink": "https://example.com/s/DOBH4Yw",
+    "url": "https://example.com/listings/ford-fiesta-2012-123456",
     "added_epoch_iso": "2025-09-16T12:48:59+00:00",
     "created_at_epoch_iso": "2025-09-16T12:49:36+00:00"
   }
