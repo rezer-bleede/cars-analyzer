@@ -30,6 +30,17 @@ export const safeAvg = (xs) => {
   return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
 };
 
+// Simple 32-bit string hash -> hex (deterministic, not cryptographic)
+export const hash32 = (str) => {
+  str = String(str ?? "");
+  let h = 0x811c9dc5; // FNV-1a offset basis
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0; // FNV-ish mix
+  }
+  return ("00000000" + h.toString(16)).slice(-8);
+};
+
 const textParts = (value) => {
   if (value == null) return [];
   if (typeof value === "string") {

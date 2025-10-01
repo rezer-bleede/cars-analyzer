@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { NavLink, Routes, Route } from "react-router-dom";
 import Overview from "./pages/Overview.jsx";
 import Charts from "./pages/Charts.jsx";
-import { num, normalizeTimestamp, deriveBrand, deriveModel, deriveFullLocation } from "./utils";
+import CarDetail from "./pages/CarDetail.jsx";
+import { num, normalizeTimestamp, deriveBrand, deriveModel, deriveFullLocation, hash32 } from "./utils";
 
 const R2_URL =
   import.meta.env.VITE_R2_JSON_URL?.trim() ||
@@ -51,7 +52,65 @@ export default function App() {
           const ts = normalizeTimestamp(d);
           d.created_at_epoch_ms = ts.ms;
           d.created_at_iso = ts.iso;
+          d.created_at_day = Number.isFinite(ts.ms) ? new Date(ts.ms).toISOString().slice(0,10) : "";
+
+          // Deterministic uid for internal routing
+          const idSource = [
+            d.id,
+            d.url,
+            d.permalink,
+            d.created_at_iso,
+            d.title_en,
+            d.price,
+            d.details_make,
+            d.details_model,
+            d.details_year
+          ].filter(Boolean).join("|");
+          d.uid = hash32(idSource);
         });
+
+        // Compute market averages for the last 3 months by (brand,model,year)
+        const now = Date.now();
+        const threeMonthsMs = 90 * 24 * 60 * 60 * 1000; // approx 3 months
+        const cutoff = now - threeMonthsMs;
+
+        // Build segment aggregates
+        const segMap = new Map(); // key => {sum,count}
+        for (const d of rows) {
+          if (!Number.isFinite(d.price)) continue;
+          if (!Number.isFinite(d.created_at_epoch_ms) || d.created_at_epoch_ms < cutoff) continue;
+          const make = d.details_make || d.brand;
+          const model = d.details_model || d.model;
+          const year = d.details_year;
+          if (!make || !model || !Number.isFinite(year)) continue;
+          const key = `${make}|${model}|${year}`.toLowerCase();
+          const cur = segMap.get(key) || { sum: 0, count: 0 };
+          cur.sum += d.price;
+          cur.count += 1;
+          segMap.set(key, cur);
+        }
+
+        // Apply market_avg & market_diff to each row (diff = market_avg - price)
+        for (const d of rows) {
+          const make = d.details_make || d.brand;
+          const model = d.details_model || d.model;
+          const year = d.details_year;
+          let market_avg = null;
+          let market_count = 0;
+          if (make && model && Number.isFinite(year)) {
+            const key = `${make}|${model}|${year}`.toLowerCase();
+            const agg = segMap.get(key);
+            if (agg && agg.count > 0) {
+              market_avg = Math.round(agg.sum / agg.count);
+              market_count = agg.count;
+            }
+          }
+          d.market_avg = market_avg;
+          d.market_count = market_count;
+          d.market_diff = Number.isFinite(d.price) && Number.isFinite(market_avg)
+            ? market_avg - d.price
+            : null;
+        }
 
         setData(rows);
       } catch (e) {
@@ -192,6 +251,7 @@ export default function App() {
             }
           />
           <Route path="/charts" element={<Charts data={data} />} />
+          <Route path="/car/:id" element={<CarDetail data={data} />} />
         </Routes>
       </main>
     </div>

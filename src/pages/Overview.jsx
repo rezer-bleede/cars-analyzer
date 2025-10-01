@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { cmp, fmtPrice, esc } from "../utils";
 
 const DEFAULT_SORT_KEY = "created_at_epoch_ms";
 const DEFAULT_SORT_DIR = "desc";
 
 export default function Overview({ data, searchQuery = "", cityFilter = "", bodyFilter = "", resetSignal = 0 }) {
+  const navigate = useNavigate();
   const [sortKey, setSortKey] = useState(DEFAULT_SORT_KEY);
   const [sortDir, setSortDir] = useState(DEFAULT_SORT_DIR);
   const [view, setView] = useState([]);
@@ -44,7 +46,20 @@ export default function Overview({ data, searchQuery = "", cityFilter = "", body
       return true;
     });
     const dir = sortDir === "asc" ? 1 : -1;
-    v.sort((a,b) => cmp(a[sortKey], b[sortKey]) * dir);
+    if (sortKey === DEFAULT_SORT_KEY) {
+      // Composite sort: by date, then market_diff (desc) within same calendar day
+      v.sort((a, b) => {
+        const dayA = a.created_at_day || "";
+        const dayB = b.created_at_day || "";
+        if (dayA !== dayB) return cmp(a.created_at_epoch_ms, b.created_at_epoch_ms) * -1; // date desc primary
+        const mdA = Number.isFinite(a.market_diff) ? a.market_diff : -Infinity;
+        const mdB = Number.isFinite(b.market_diff) ? b.market_diff : -Infinity;
+        if (mdA !== mdB) return mdB - mdA; // higher market_diff first
+        return cmp(a.created_at_epoch_ms, b.created_at_epoch_ms) * -1; // stable within day
+      });
+    } else {
+      v.sort((a,b) => cmp(a[sortKey], b[sortKey]) * dir);
+    }
     setView(v);
     setCurrentPage(1); // Reset to first page when filters change
   }, [data, searchQuery, cityFilter, bodyFilter, sortKey, sortDir]);
@@ -121,13 +136,13 @@ export default function Overview({ data, searchQuery = "", cityFilter = "", body
                   const regionalSpecs = d.details_regional_specs || "";
                   const sellerType = d.details_seller_type || "";
                   const primaryLink = d.url || d.permalink || "";
-                  const clickable = Boolean(primaryLink);
+                  const clickable = Boolean(d.uid);
 
                   return (
                     <tr
                       key={d.id ?? Math.random()}
                       className={isRecent ? "table-warning" : ""}
-                      onClick={() => { if (clickable) window.open(primaryLink, "_blank", "noopener"); }}
+                      onClick={() => { if (clickable) navigate(`/car/${d.uid}`); }}
                       onKeyDown={(e) => {
                         if (!clickable) return;
                         if (e.key === "Enter" || e.key === " ") {
