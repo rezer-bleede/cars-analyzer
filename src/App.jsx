@@ -3,6 +3,7 @@ import { NavLink, Routes, Route } from "react-router-dom";
 import Overview from "./pages/Overview.jsx";
 import Charts from "./pages/Charts.jsx";
 import CarDetail from "./pages/CarDetail.jsx";
+import Flippers from "./pages/Flippers.jsx";
 import { num, normalizeTimestamp, deriveBrand, deriveModel, deriveFullLocation, hash32 } from "./utils";
 
 const R2_URL =
@@ -229,6 +230,14 @@ export default function App() {
                 >
                   📈 Charts
                 </NavLink>
+                <NavLink
+                  to="/flippers"
+                  className={({ isActive }) =>
+                    `btn ${isActive ? "btn-primary" : "btn-outline-primary"} btn-sm px-3`
+                  }
+                >
+                  💸 Flippers
+                </NavLink>
               </nav>
             </div>
           </div>
@@ -251,6 +260,7 @@ export default function App() {
             }
           />
           <Route path="/charts" element={<Charts data={data} />} />
+          <Route path="/flippers" element={<Flippers data={data} />} />
           <Route path="/car/:id" element={<CarDetail data={data} />} />
         </Routes>
       </main>
