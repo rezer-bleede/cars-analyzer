@@ -43,9 +43,11 @@ export default function Flippers({ data }) {
                   <th>Brand</th>
                   <th>Model</th>
                   <th>Year</th>
+                  <th>Price</th>
+                  <th>Location</th>
                   <th>Seller Type</th>
                   <th>Regional Specs</th>
-                  <th>Diff vs Avg</th>
+                  <th>Market Discount</th>
                   <th>Action</th>
                 </tr>
               </thead>
@@ -56,6 +58,8 @@ export default function Flippers({ data }) {
                     <td className="fw-semibold">{esc(d.details_make || d.brand || '')}</td>
                     <td className="text-muted">{esc(d.details_model || d.model || '')}</td>
                     <td>{d.details_year ?? ''}</td>
+                    <td className="fw-semibold text-success">{Number.isFinite(d.price) ? fmtPrice(d.price) : ''}</td>
+                    <td className="text-info">{esc(d.location_full || d.city_inferred || '')}</td>
                     <td>{esc(d.details_seller_type || '')}</td>
                     <td>{esc(d.details_regional_specs || '')}</td>
                     <td className="fw-bold text-success">{Number.isFinite(d.market_diff) ? fmtPrice(d.market_diff) : 'N/A'}</td>
@@ -72,4 +76,3 @@ export default function Flippers({ data }) {
     </div>
   );
 }
-
