@@ -11,10 +11,7 @@ const R2_URL =
   (typeof window !== "undefined" && window.__R2_JSON_URL__) ||
   "";
 
-const CRSWTCH_URL =
-  import.meta.env.VITE_CRSWTCH_JSON_URL?.trim() ||
-  (typeof window !== "undefined" && window.__CRSWTCH_JSON_URL__) ||
-  "/data_crswth_listings.json";
+const CRSWTCH_URL = import.meta.env.VITE_CRSWTCH_JSON_URL?.trim() || "";
 
 const cleanLabel = (value) => {
   if (typeof value !== "string") return value ?? "";
