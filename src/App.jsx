@@ -13,6 +13,68 @@ const R2_URL =
 
 const CRSWTCH_URL = import.meta.env.VITE_CRSWTCH_JSON_URL?.trim() || "";
 
+const SEARCH_FIELDS = [
+  "details_make",
+  "details_model",
+  "brand",
+  "model",
+  "location_full",
+  "neighbourhood_en",
+  "details_regional_specs",
+  "details_seller_type",
+  "title_en",
+  "city_inferred",
+  "details_body_type"
+];
+
+const tokenMatcher = /"([^"]+)"|'([^']+)'|[^\s]+/g;
+
+const parseSearchQuery = (input) => {
+  if (!input) return [];
+  const groups = [];
+  for (const segment of input.split(",")) {
+    const trimmed = segment.trim();
+    if (!trimmed) continue;
+    const tokens = [];
+    const matcher = trimmed.matchAll(tokenMatcher);
+    for (const match of matcher) {
+      const token = (match[1] || match[2] || match[0] || "").trim().toLowerCase();
+      if (token) tokens.push(token);
+    }
+    if (tokens.length) groups.push(tokens);
+  }
+  return groups;
+};
+
+const MILLIS_PER_DAY = 24 * 60 * 60 * 1000;
+
+const describeDateFilter = (filter, customWeeks) => {
+  const now = Date.now();
+  switch (filter) {
+    case "1d":
+      return { label: "Last 1 day", cutoffMs: now - MILLIS_PER_DAY, days: 1 };
+    case "3d":
+      return { label: "Last 3 days", cutoffMs: now - 3 * MILLIS_PER_DAY, days: 3 };
+    case "1w":
+      return { label: "Last 1 week", cutoffMs: now - 7 * MILLIS_PER_DAY, days: 7 };
+    case "custom": {
+      const weeksRaw = Number(customWeeks);
+      if (Number.isFinite(weeksRaw) && weeksRaw > 0) {
+        const weeks = Math.min(52, Math.max(1, Math.floor(weeksRaw)));
+        const days = weeks * 7;
+        return {
+          label: `Last ${weeks} week${weeks === 1 ? "" : "s"}`,
+          cutoffMs: now - days * MILLIS_PER_DAY,
+          days
+        };
+      }
+      return { label: "Custom", cutoffMs: null, days: null };
+    }
+    default:
+      return { label: "All dates", cutoffMs: null, days: null };
+  }
+};
+
 const cleanLabel = (value) => {
   if (typeof value !== "string") return value ?? "";
   const base = value.includes(".") ? value.split(".").pop() : value;
@@ -81,6 +143,8 @@ export default function App() {
   const [search, setSearch] = useState("");
   const [cityFilter, setCityFilter] = useState("");
   const [bodyFilter, setBodyFilter] = useState("");
+  const [dateFilter, setDateFilter] = useState("all");
+  const [customWeeks, setCustomWeeks] = useState("4");
   const [resetSignal, setResetSignal] = useState(0);
 
   const cityOptions = useMemo(
@@ -203,6 +267,16 @@ export default function App() {
           d.market_diff = Number.isFinite(d.price) && Number.isFinite(market_avg)
             ? market_avg - d.price
             : null;
+          d.market_discount_pct = Number.isFinite(d.market_diff) && Number.isFinite(market_avg) && market_avg !== 0
+            ? (d.market_diff / market_avg) * 100
+            : null;
+
+          const blob = SEARCH_FIELDS
+            .map((field) => d[field])
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
+          d._search_blob = blob;
         }
 
         setData(rows);
@@ -214,20 +288,45 @@ export default function App() {
     })();
   }, []);
 
+  const searchGroups = useMemo(() => parseSearchQuery(search), [search]);
+  const dateFilterMeta = useMemo(() => describeDateFilter(dateFilter, customWeeks), [dateFilter, customWeeks]);
+
+  const filteredData = useMemo(() => {
+    const cutoff = dateFilterMeta.cutoffMs;
+    return data.filter((d) => {
+      if (cityFilter && d.city_inferred !== cityFilter) return false;
+      if (bodyFilter && d.details_body_type !== bodyFilter) return false;
+      if (cutoff != null) {
+        if (!Number.isFinite(d.created_at_epoch_ms)) return false;
+        if (d.created_at_epoch_ms < cutoff) return false;
+      }
+      if (searchGroups.length) {
+        const blob = d._search_blob || "";
+        const matches = searchGroups.some((tokens) => tokens.every((token) => blob.includes(token)));
+        if (!matches) return false;
+      }
+      return true;
+    });
+  }, [data, cityFilter, bodyFilter, searchGroups, dateFilterMeta.cutoffMs]);
+
+  const stats = useMemo(() => {
+    const totalListings = filteredData.length;
+    const avgPrice = totalListings > 0
+      ? Math.round(filteredData.reduce((sum, d) => sum + (d.price || 0), 0) / totalListings)
+      : 0;
+    const cities = new Set(filteredData.map((d) => d.city_inferred).filter(Boolean)).size;
+    return { totalListings, avgPrice, cities };
+  }, [filteredData]);
+
   if (loading) return <div className="container"><p>Loading…</p></div>;
   if (err) return <div className="container"><p style={{color:"#b00020"}}>Error: {err}</p></div>;
-
-  // Calculate stats for header
-  const stats = {
-    totalListings: data.length,
-    avgPrice: data.length > 0 ? Math.round(data.reduce((sum, d) => sum + (d.price || 0), 0) / data.length) : 0,
-    cities: new Set(data.map(d => d.city_inferred).filter(Boolean)).size
-  };
 
   const handleReset = () => {
     setSearch("");
     setCityFilter("");
     setBodyFilter("");
+    setDateFilter("all");
+    setCustomWeeks("4");
     setResetSignal((n) => n + 1);
   };
 
@@ -265,8 +364,8 @@ export default function App() {
               >
                 <input
                   type="search"
-                  className="form-control form-control-sm"
-                  placeholder="Search make, model, location…"
+                className="form-control form-control-sm"
+                  placeholder="Search keywords (space/comma separated)…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   style={{ minWidth: "200px", maxWidth: "260px" }}
@@ -299,6 +398,33 @@ export default function App() {
                     <option key={b} value={b}>{b}</option>
                   ))}
                 </select>
+                <select
+                  className="form-select form-select-sm"
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value)}
+                  style={{ minWidth: "160px" }}
+                  aria-label="Filter by listing date"
+                >
+                  <option value="all">All dates</option>
+                  <option value="1d">Last 1 day</option>
+                  <option value="3d">Last 3 days</option>
+                  <option value="1w">Last 1 week</option>
+                  <option value="custom">Last N weeks…</option>
+                </select>
+                {dateFilter === "custom" && (
+                  <input
+                    type="number"
+                    className="form-control form-control-sm"
+                    min="1"
+                    max="52"
+                    step="1"
+                    value={customWeeks}
+                    onChange={(e) => setCustomWeeks(e.target.value)}
+                    placeholder="Weeks"
+                    style={{ width: "90px" }}
+                    aria-label="Enter number of weeks"
+                  />
+                )}
                 <button type="button" className="btn btn-outline-secondary btn-sm" onClick={handleReset}>
                   Reset
                 </button>
@@ -343,16 +469,13 @@ export default function App() {
             path="/"
             element={
               <Overview
-                data={data}
-                searchQuery={search}
-                cityFilter={cityFilter}
-                bodyFilter={bodyFilter}
+                data={filteredData}
                 resetSignal={resetSignal}
               />
             }
           />
-          <Route path="/charts" element={<Charts data={data} />} />
-          <Route path="/flippers" element={<Flippers data={data} />} />
+          <Route path="/charts" element={<Charts data={filteredData} />} />
+          <Route path="/flippers" element={<Flippers data={filteredData} dateWindow={dateFilterMeta} />} />
           <Route path="/car/:id" element={<CarDetail data={data} />} />
         </Routes>
       </main>

@@ -5,7 +5,7 @@ import { cmp, fmtPrice, esc } from "../utils";
 const DEFAULT_SORT_KEY = "created_at_epoch_ms";
 const DEFAULT_SORT_DIR = "desc";
 
-export default function Overview({ data, searchQuery = "", cityFilter = "", bodyFilter = "", resetSignal = 0 }) {
+export default function Overview({ data, resetSignal = 0 }) {
   const navigate = useNavigate();
   const [sortKey, setSortKey] = useState(DEFAULT_SORT_KEY);
   const [sortDir, setSortDir] = useState(DEFAULT_SORT_DIR);
@@ -23,28 +23,7 @@ export default function Overview({ data, searchQuery = "", cityFilter = "", body
   }, [data]);
 
   useEffect(() => {
-    let v = data.filter((d) => {
-      if (cityFilter && d.city_inferred !== cityFilter) return false;
-      if (bodyFilter && d.details_body_type !== bodyFilter) return false;
-      const q = searchQuery.trim().toLowerCase();
-      if (q) {
-        const blob = [
-          d.details_make,
-          d.details_model,
-          d.brand,
-          d.model,
-          d.location_full,
-          d.neighbourhood_en,
-          d.details_regional_specs,
-          d.details_seller_type,
-          d.title_en,
-          d.city_inferred,
-          d.details_body_type
-        ].join(" ").toLowerCase();
-        if (!blob.includes(q)) return false;
-      }
-      return true;
-    });
+    const v = data.slice();
     const dir = sortDir === "asc" ? 1 : -1;
     if (sortKey === DEFAULT_SORT_KEY) {
       // Composite sort: by date, then market_diff (desc) within same calendar day
@@ -61,8 +40,8 @@ export default function Overview({ data, searchQuery = "", cityFilter = "", body
       v.sort((a,b) => cmp(a[sortKey], b[sortKey]) * dir);
     }
     setView(v);
-    setCurrentPage(1); // Reset to first page when filters change
-  }, [data, searchQuery, cityFilter, bodyFilter, sortKey, sortDir]);
+    setCurrentPage(1); // Reset to first page when data changes
+  }, [data, sortKey, sortDir]);
 
   useEffect(() => {
     setSortKey(DEFAULT_SORT_KEY);
@@ -140,7 +119,7 @@ export default function Overview({ data, searchQuery = "", cityFilter = "", body
 
                   return (
                     <tr
-                      key={d.id ?? Math.random()}
+                      key={d.uid || d.id || `${d.details_make}-${d.details_model}-${d.created_at_epoch_ms}`}
                       className={isRecent ? "table-warning" : ""}
                       onClick={() => { if (clickable) navigate(`/car/${d.uid}`); }}
                       onKeyDown={(e) => {
