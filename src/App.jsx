@@ -4,6 +4,7 @@ import Overview from "./pages/Overview.jsx";
 import Charts from "./pages/Charts.jsx";
 import CarDetail from "./pages/CarDetail.jsx";
 import Flippers from "./pages/Flippers.jsx";
+import Analytics from "./pages/Analytics.jsx";
 import { num, normalizeTimestamp, deriveBrand, deriveModel, deriveFullLocation, hash32 } from "./utils";
 
 const R2_URL =
@@ -456,6 +457,14 @@ export default function App() {
                 >
                   💸 Flippers
                 </NavLink>
+                <NavLink
+                  to="/analytics"
+                  className={({ isActive }) =>
+                    `btn ${isActive ? "btn-primary" : "btn-outline-primary"} btn-sm px-3`
+                  }
+                >
+                  🧮 Analytics
+                </NavLink>
               </nav>
             </div>
           </div>
@@ -476,6 +485,7 @@ export default function App() {
           />
           <Route path="/charts" element={<Charts data={filteredData} />} />
           <Route path="/flippers" element={<Flippers data={filteredData} dateWindow={dateFilterMeta} />} />
+          <Route path="/analytics" element={<Analytics data={filteredData} />} />
           <Route path="/car/:id" element={<CarDetail data={data} />} />
         </Routes>
       </main>
