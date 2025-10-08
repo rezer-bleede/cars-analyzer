@@ -218,6 +218,126 @@ const Analytics = ({ data }) => {
 
   const datasetSize = data.length;
 
+  const summary = useMemo(() => {
+    if (!data.length) {
+      return {
+        averagePrice: 0,
+        medianPrice: 0,
+        averageDiscount: 0,
+        distinctMakes: 0,
+        recentListings: 0
+      };
+    }
+
+    const priceValues = data
+      .map((row) => Number(row.price))
+      .filter((value) => Number.isFinite(value))
+      .sort((a, b) => a - b);
+
+    const averagePrice = priceValues.length
+      ? priceValues.reduce((sum, value) => sum + value, 0) / priceValues.length
+      : 0;
+
+    const medianPrice = priceValues.length
+      ? priceValues[Math.floor(priceValues.length / 2)]
+      : 0;
+
+    const discountValues = data
+      .map((row) => Number(row.market_discount_pct))
+      .filter((value) => Number.isFinite(value));
+
+    const averageDiscount = discountValues.length
+      ? discountValues.reduce((sum, value) => sum + value, 0) / discountValues.length
+      : 0;
+
+    const makes = new Set(
+      data
+        .map((row) => row.details_make || row.brand)
+        .filter((value) => typeof value === "string" && value.trim())
+    );
+
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const recentListings = data.filter((row) => {
+      const ts = Number(row.created_at_epoch_ms);
+      return Number.isFinite(ts) && ts >= sevenDaysAgo;
+    }).length;
+
+    return {
+      averagePrice,
+      medianPrice,
+      averageDiscount,
+      distinctMakes: makes.size,
+      recentListings
+    };
+  }, [data]);
+
+  const topMakes = useMemo(() => {
+    const aggregates = new Map();
+    data.forEach((row) => {
+      const make = (row.details_make || row.brand || "Unknown").trim() || "Unknown";
+      const price = Number(row.price);
+      const discount = Number(row.market_discount_pct);
+      const entry = aggregates.get(make) || {
+        make,
+        count: 0,
+        priceTotal: 0,
+        discountTotal: 0,
+        discountSamples: 0
+      };
+      entry.count += 1;
+      if (Number.isFinite(price)) {
+        entry.priceTotal += price;
+      }
+      if (Number.isFinite(discount)) {
+        entry.discountTotal += discount;
+        entry.discountSamples += 1;
+      }
+      aggregates.set(make, entry);
+    });
+
+    return Array.from(aggregates.values())
+      .filter((entry) => entry.count >= 3)
+      .map((entry) => ({
+        make: entry.make,
+        count: entry.count,
+        averagePrice: entry.priceTotal / entry.count || 0,
+        averageDiscount: entry.discountSamples
+          ? entry.discountTotal / entry.discountSamples
+          : 0
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+  }, [data]);
+
+  const topCities = useMemo(() => {
+    const aggregates = new Map();
+    data.forEach((row) => {
+      const city = (row.city_inferred || "Unknown").trim() || "Unknown";
+      const price = Number(row.price);
+      const entry = aggregates.get(city) || {
+        city,
+        count: 0,
+        priceTotal: 0
+      };
+      entry.count += 1;
+      if (Number.isFinite(price)) {
+        entry.priceTotal += price;
+      }
+      aggregates.set(city, entry);
+    });
+
+    return Array.from(aggregates.values())
+      .filter((entry) => entry.count >= 3)
+      .map((entry) => ({
+        city: entry.city,
+        count: entry.count,
+        averagePrice: entry.priceTotal / entry.count || 0,
+        share: datasetSize ? (entry.count / datasetSize) * 100 : 0
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+  }, [data, datasetSize]);
+
   const updateKpi = (id, updater) => {
     setKpis((prev) =>
       prev.map((kpi) => (kpi.id === id ? { ...kpi, ...updater(kpi) } : kpi))
@@ -287,31 +407,149 @@ const Analytics = ({ data }) => {
   };
 
   return (
-    <div className="container-fluid">
-      <div className="d-flex flex-column flex-lg-row align-items-lg-center justify-content-lg-between gap-2 mb-3">
-        <div>
-          <h2 className="h4 mb-1">Dynamic Analytics</h2>
+    <div className="analytics-layout container-fluid">
+      <section className="analytics-hero">
+        <div className="analytics-hero__text">
+          <h2 className="h4 mb-2">Dynamic Analytics</h2>
           <p className="text-muted mb-0">
-            Build custom KPIs with live results. All metrics respect the filters set at the top of the dashboard.
+            Build KPI dashboards on the fly. Every calculation respects the global filters you set on the main toolbar.
           </p>
+          <div className="analytics-hero__meta">
+            <span>
+              Active dataset
+              <strong>{datasetSize.toLocaleString("en-US")}</strong>
+            </span>
+            <span>
+              Distinct makes
+              <strong>{summary.distinctMakes.toLocaleString("en-US")}</strong>
+            </span>
+            <span>
+              New this week
+              <strong>{summary.recentListings.toLocaleString("en-US")}</strong>
+            </span>
+          </div>
         </div>
-        <div className="text-muted small">
-          Active dataset: <strong>{datasetSize.toLocaleString("en-US")}</strong> listings
+        <div className="analytics-summary">
+          <div className="analytics-summary__card">
+            <span className="analytics-summary__label">Average price</span>
+            <span className="analytics-summary__value">{fmtPrice(Math.round(summary.averagePrice))}</span>
+          </div>
+          <div className="analytics-summary__card">
+            <span className="analytics-summary__label">Median price</span>
+            <span className="analytics-summary__value">{fmtPrice(Math.round(summary.medianPrice))}</span>
+          </div>
+          <div className="analytics-summary__card">
+            <span className="analytics-summary__label">Avg. market discount</span>
+            <span className="analytics-summary__value">{summary.averageDiscount.toFixed(1)}%</span>
+          </div>
         </div>
-      </div>
+      </section>
 
-      <div className="mb-3">
-        <button type="button" className="btn btn-primary" onClick={addKpi}>
-          + Add KPI
-        </button>
-      </div>
+      <section className="analytics-insights row g-3">
+        <div className="col-12 col-lg-6">
+          <div className="analytics-insights__card h-100">
+            <header>
+              <h3 className="h6 mb-1">Top performing makes</h3>
+              <p className="text-muted extra-small mb-0">
+                Sorted by number of active listings with average price and discount snapshot.
+              </p>
+            </header>
+            <div className="table-responsive mt-3">
+              <table className="table table-sm align-middle mb-0" aria-label="Top performing makes">
+                <thead>
+                  <tr>
+                    <th scope="col">Make</th>
+                    <th scope="col" className="text-end">Listings</th>
+                    <th scope="col" className="text-end">Avg price</th>
+                    <th scope="col" className="text-end">Avg discount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topMakes.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="text-center text-muted py-4">
+                        Not enough data to surface insights yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    topMakes.map((entry) => (
+                      <tr key={entry.make}>
+                        <th scope="row">{entry.make}</th>
+                        <td className="text-end">{entry.count.toLocaleString("en-US")}</td>
+                        <td className="text-end">{fmtPrice(Math.round(entry.averagePrice))}</td>
+                        <td className="text-end">
+                          {entry.averageDiscount ? `${entry.averageDiscount.toFixed(1)}%` : "—"}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
 
-      <div className="row g-3">
-        {kpis.map((kpi, index) => {
-          const aggregator = AGGREGATORS.find((agg) => agg.value === kpi.aggregator) || AGGREGATORS[0];
-          const needsField = aggregator.needsField;
-          const metricMeta = needsField ? fieldMetaByValue[kpi.field] : null;
-          const compatibleFields = needsField ? compatibleMetricFields(aggregator.value) : [];
+        <div className="col-12 col-lg-6">
+          <div className="analytics-insights__card h-100">
+            <header>
+              <h3 className="h6 mb-1">Where demand is concentrated</h3>
+              <p className="text-muted extra-small mb-0">
+                Cities contributing the largest share of active listings right now.
+              </p>
+            </header>
+            <div className="table-responsive mt-3">
+              <table className="table table-sm align-middle mb-0" aria-label="Where demand is concentrated">
+                <thead>
+                  <tr>
+                    <th scope="col">City</th>
+                    <th scope="col" className="text-end">Listings</th>
+                    <th scope="col" className="text-end">Share</th>
+                    <th scope="col" className="text-end">Avg price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topCities.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="text-center text-muted py-4">
+                        Not enough data to surface insights yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    topCities.map((entry) => (
+                      <tr key={entry.city}>
+                        <th scope="row">{entry.city}</th>
+                        <td className="text-end">{entry.count.toLocaleString("en-US")}</td>
+                        <td className="text-end">{entry.share.toFixed(1)}%</td>
+                        <td className="text-end">{fmtPrice(Math.round(entry.averagePrice))}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="analytics-kpis">
+        <div className="d-flex flex-column flex-lg-row align-items-lg-center justify-content-lg-between gap-2 mb-3">
+          <div>
+            <h3 className="h5 mb-1">Custom KPI builder</h3>
+            <p className="text-muted mb-0">Mix and match aggregations with flexible filters for on-the-fly analysis.</p>
+          </div>
+          <div>
+            <button type="button" className="btn btn-primary" onClick={addKpi}>
+              + Add KPI
+            </button>
+          </div>
+        </div>
+
+        <div className="row g-3">
+          {kpis.map((kpi, index) => {
+            const aggregator = AGGREGATORS.find((agg) => agg.value === kpi.aggregator) || AGGREGATORS[0];
+            const needsField = aggregator.needsField;
+            const metricMeta = needsField ? fieldMetaByValue[kpi.field] : null;
+            const compatibleFields = needsField ? compatibleMetricFields(aggregator.value) : [];
           const result = kpiResults.find((r) => r.id === kpi.id)?.result ?? { formatted: "—", matches: 0 };
           const matchesText = Number.isFinite(result.matches)
             ? result.matches.toLocaleString("en-US")
@@ -433,12 +671,15 @@ const Analytics = ({ data }) => {
                           const isNumber = meta.type === "number";
                           const operators = isNumber ? NUMBER_OPERATORS : STRING_OPERATORS;
                           const valueOptions = suggestions[filter.field] || [];
+                          const fieldId = `${filter.id}-field`;
+                          const operatorId = `${filter.id}-operator`;
+                          const valueId = `${filter.id}-value`;
 
                           return (
                             <div className="border rounded p-2" key={filter.id}>
                               <div className="row g-2 align-items-end">
                                 <div className="col-12 col-md-4">
-                                  <label className="form-label form-label-sm mb-1">Field</label>
+                                  <label className="form-label form-label-sm mb-1" htmlFor={fieldId}>Field</label>
                                   <select
                                     className="form-select form-select-sm"
                                     value={filter.field}
@@ -452,6 +693,7 @@ const Analytics = ({ data }) => {
                                       }));
                                     }}
                                     aria-label="Filter field"
+                                    id={fieldId}
                                   >
                                     <option value="">Select field…</option>
                                     {FILTER_FIELDS.map((field) => (
@@ -463,7 +705,7 @@ const Analytics = ({ data }) => {
                                 </div>
 
                                 <div className="col-12 col-md-3">
-                                  <label className="form-label form-label-sm mb-1">Operator</label>
+                                  <label className="form-label form-label-sm mb-1" htmlFor={operatorId}>Operator</label>
                                   <select
                                     className="form-select form-select-sm"
                                     value={filter.operator}
@@ -473,6 +715,7 @@ const Analytics = ({ data }) => {
                                     }}
                                     aria-label="Filter operator"
                                     disabled={!filter.field}
+                                    id={operatorId}
                                   >
                                     <option value="">Select…</option>
                                     {operators.map((op) => (
@@ -484,7 +727,7 @@ const Analytics = ({ data }) => {
                                 </div>
 
                                 <div className="col-12 col-md-4">
-                                  <label className="form-label form-label-sm mb-1">Value</label>
+                                  <label className="form-label form-label-sm mb-1" htmlFor={valueId}>Value</label>
                                   {isNumber ? (
                                     <input
                                       type="number"
@@ -493,6 +736,7 @@ const Analytics = ({ data }) => {
                                       onChange={(e) => updateFilter(kpi.id, filter.id, () => ({ value: e.target.value }))}
                                       aria-label="Numeric filter value"
                                       disabled={!filter.operator}
+                                      id={valueId}
                                     />
                                   ) : (
                                     <input
@@ -503,6 +747,7 @@ const Analytics = ({ data }) => {
                                       list={valueOptions.length ? `${filter.id}-options` : undefined}
                                       aria-label="Filter value"
                                       disabled={!filter.operator}
+                                      id={valueId}
                                     />
                                   )}
                                   {!isNumber && valueOptions.length ? (
@@ -542,7 +787,8 @@ const Analytics = ({ data }) => {
             </div>
           );
         })}
-      </div>
+        </div>
+      </section>
     </div>
   );
 };

@@ -7,12 +7,14 @@ A modern, responsive web application for analyzing used car listings with real-t
 - **📊 Real-time Data Analysis**: Live data from R2 storage with automatic updates
 - **🔍 Advanced Filtering**: Search by brand, model, location, body type, and more
 - **📈 Interactive Charts**: Price trends, brand analysis, and time-based insights
+- **🔎 Intelligent Search**: Multi-select search box with instant autocomplete across make, model, city, specs, and more
 - **📱 Responsive Design**: Optimized for desktop, tablet, and mobile devices
 - **⚡ Fast Performance**: Paginated tables with 20 items per page
 - **🎨 Modern UI/UX**: Bootstrap 5 with industry-standard design patterns
 - **🕒 Latest Listings Highlight**: Automatically highlights newest entries
 - **📍 Location Intelligence**: City-based filtering and analysis
 - **🔝 Sticky Header Search**: Compact top bar with always-on search, inline filters, and quick navigation
+- **🧮 Analytics Workspace**: Redesigned insights hub with summary metrics, top segments, and a custom KPI builder
 
 ## 🚀 Quick Start
 
@@ -161,9 +163,15 @@ npm run build
 # Preview production build
 npm run preview
 
-# Lint code
-npm run lint
+# Run automated tests
+npm test
 ```
+
+### Testing
+
+- **Unit tests** cover interactive primitives like the intelligent search multi-select.
+- **Integration tests** exercise end-to-end analytics workflows, including KPI filtering and insight tables.
+- Execute the full suite with `npm test`. Use `npm run test:watch` during development for rapid feedback.
 
 ### Code Quality
 - ESLint configuration for code consistency

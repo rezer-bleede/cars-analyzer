@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { NavLink, Routes, Route } from "react-router-dom";
+import SearchMultiSelect from "./components/SearchMultiSelect.jsx";
 import Overview from "./pages/Overview.jsx";
 import Charts from "./pages/Charts.jsx";
 import CarDetail from "./pages/CarDetail.jsx";
@@ -141,7 +142,7 @@ export default function App() {
   const [data, setData] = useState([]);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [searchTokens, setSearchTokens] = useState([]);
   const [cityFilter, setCityFilter] = useState("");
   const [bodyFilter, setBodyFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("all");
@@ -156,6 +157,52 @@ export default function App() {
     () => [...new Set(data.map((d) => d.details_body_type).filter(Boolean))].sort(),
     [data]
   );
+
+  const searchSuggestions = useMemo(() => {
+    const map = new Map();
+    const addValue = (label) => {
+      if (label == null) return;
+      const trimmed = String(label).trim();
+      if (!trimmed) return;
+      const normalized = trimmed.toLowerCase();
+      const current = map.get(normalized);
+      if (current) {
+        current.count += 1;
+      } else {
+        map.set(normalized, { label: trimmed, count: 1 });
+      }
+    };
+
+    data.forEach((row) => {
+      SEARCH_FIELDS.forEach((field) => {
+        const raw = row[field];
+        if (raw == null) return;
+        if (Array.isArray(raw)) {
+          raw.forEach(addValue);
+        } else if (typeof raw === "string") {
+          if (raw.includes("/")) {
+            raw.split("/").forEach(addValue);
+          } else if (raw.includes(",")) {
+            raw.split(",").forEach(addValue);
+          } else {
+            addValue(raw);
+          }
+        } else {
+          addValue(raw);
+        }
+      });
+    });
+
+    return Array.from(map.values())
+      .sort((a, b) => {
+        if (b.count === a.count) {
+          return a.label.localeCompare(b.label);
+        }
+        return b.count - a.count;
+      })
+      .slice(0, 200)
+      .map((entry) => entry.label);
+  }, [data]);
 
   useEffect(() => {
     (async () => {
@@ -289,7 +336,10 @@ export default function App() {
     })();
   }, []);
 
-  const searchGroups = useMemo(() => parseSearchQuery(search), [search]);
+  const searchGroups = useMemo(
+    () => parseSearchQuery(searchTokens.join(", ")),
+    [searchTokens]
+  );
   const dateFilterMeta = useMemo(() => describeDateFilter(dateFilter, customWeeks), [dateFilter, customWeeks]);
 
   const filteredData = useMemo(() => {
@@ -323,7 +373,7 @@ export default function App() {
   if (err) return <div className="container"><p style={{color:"#b00020"}}>Error: {err}</p></div>;
 
   const handleReset = () => {
-    setSearch("");
+    setSearchTokens([]);
     setCityFilter("");
     setBodyFilter("");
     setDateFilter("all");
@@ -334,76 +384,77 @@ export default function App() {
   return (
     <div className="min-vh-100 bg-light">
       {/* Header */}
-      <header className="bg-white shadow-sm border-bottom sticky-top" style={{ zIndex: 1030 }}>
-        <div className="container-fluid">
-          <div className="d-flex align-items-center gap-3 py-1 flex-wrap flex-lg-nowrap">
-            <div className="d-flex flex-column me-3 flex-shrink-0">
-              <h1 className="h5 mb-0 text-primary fw-bold">🚗 Used Cars Dashboard</h1>
-              <span className="text-muted small">Real-time car listings analysis</span>
+      <header className="app-header shadow-sm border-bottom sticky-top" style={{ zIndex: 1030 }}>
+        <div className="container-fluid py-3">
+          <div className="app-header__grid">
+            <div className="app-header__brand">
+              <h1 className="h5 mb-1 text-primary fw-bold">🚗 Used Cars Dashboard</h1>
+              <p className="text-muted small mb-0">Real-time car listings analysis</p>
             </div>
 
-            <div className="d-flex align-items-center gap-3 ms-auto flex-wrap flex-lg-nowrap justify-content-end w-100">
-              <div className="d-flex align-items-center gap-3 order-3 order-lg-1 text-muted small flex-shrink-0">
-                <div className="text-end">
-                  <div className="fw-semibold text-primary">{stats.totalListings.toLocaleString()}</div>
-                  <div>Total</div>
-                </div>
-                <div className="text-end">
-                  <div className="fw-semibold text-success">AED {stats.avgPrice.toLocaleString()}</div>
-                  <div>Avg Price</div>
-                </div>
-                <div className="text-end">
-                  <div className="fw-semibold text-info">{stats.cities}</div>
-                  <div>Cities</div>
-                </div>
+            <div className="app-header__stats" aria-label="Dataset summary">
+              <div>
+                <span className="app-header__stat-value text-primary">
+                  {stats.totalListings.toLocaleString()}
+                </span>
+                <span className="app-header__stat-label">Active listings</span>
               </div>
+              <div>
+                <span className="app-header__stat-value text-success">
+                  AED {stats.avgPrice.toLocaleString()}
+                </span>
+                <span className="app-header__stat-label">Average price</span>
+              </div>
+              <div>
+                <span className="app-header__stat-value text-info">{stats.cities}</span>
+                <span className="app-header__stat-label">Cities covered</span>
+              </div>
+            </div>
 
-              <form
-                className="order-1 flex-grow-1 flex-lg-grow-0"
-                onSubmit={(e) => e.preventDefault()}
-                role="search"
+            <div className="app-header__search" role="search">
+              <label className="visually-hidden" htmlFor="global-search-input">
+                Search listings
+              </label>
+              <SearchMultiSelect
+                suggestions={searchSuggestions}
+                value={searchTokens}
+                onChange={setSearchTokens}
+                placeholder="Search make, model, city, specs…"
+                name="global-search-input"
+              />
+              <p className="text-muted extra-small mb-0">
+                Type to filter, press Enter to add custom terms, or pick from suggestions.
+              </p>
+            </div>
+
+            <div className="app-header__filters">
+              <select
+                className="form-select form-select-sm"
+                value={cityFilter}
+                onChange={(e) => setCityFilter(e.target.value)}
+                aria-label="Filter by city"
               >
-                <input
-                  type="search"
-                className="form-control form-control-sm"
-                  placeholder="Search keywords (space/comma separated)…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  style={{ minWidth: "200px", maxWidth: "260px" }}
-                  aria-label="Search listings"
-                />
-              </form>
-
-              <div className="d-flex align-items-center gap-2 order-2 flex-shrink-0">
-                <select
-                  className="form-select form-select-sm"
-                  value={cityFilter}
-                  onChange={(e) => setCityFilter(e.target.value)}
-                  style={{ minWidth: "150px" }}
-                  aria-label="Filter by city"
-                >
-                  <option value="">All cities</option>
-                  {cityOptions.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-                <select
-                  className="form-select form-select-sm"
-                  value={bodyFilter}
-                  onChange={(e) => setBodyFilter(e.target.value)}
-                  style={{ minWidth: "150px" }}
-                  aria-label="Filter by body type"
-                >
-                  <option value="">All bodies</option>
-                  {bodyOptions.map((b) => (
-                    <option key={b} value={b}>{b}</option>
-                  ))}
-                </select>
+                <option value="">All cities</option>
+                {cityOptions.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+              <select
+                className="form-select form-select-sm"
+                value={bodyFilter}
+                onChange={(e) => setBodyFilter(e.target.value)}
+                aria-label="Filter by body type"
+              >
+                <option value="">All bodies</option>
+                {bodyOptions.map((b) => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+              </select>
+              <div className="app-header__date-filter">
                 <select
                   className="form-select form-select-sm"
                   value={dateFilter}
                   onChange={(e) => setDateFilter(e.target.value)}
-                  style={{ minWidth: "160px" }}
                   aria-label="Filter by listing date"
                 >
                   <option value="all">All dates</option>
@@ -422,51 +473,50 @@ export default function App() {
                     value={customWeeks}
                     onChange={(e) => setCustomWeeks(e.target.value)}
                     placeholder="Weeks"
-                    style={{ width: "90px" }}
                     aria-label="Enter number of weeks"
                   />
                 )}
-                <button type="button" className="btn btn-outline-secondary btn-sm" onClick={handleReset}>
-                  Reset
-                </button>
               </div>
-
-              <nav className="d-flex align-items-center gap-2 order-4 order-lg-3 flex-shrink-0">
-                <NavLink
-                  to="/"
-                  end
-                  className={({ isActive }) =>
-                    `btn ${isActive ? "btn-primary" : "btn-outline-primary"} btn-sm px-3`
-                  }
-                >
-                  📊 Overview
-                </NavLink>
-                <NavLink
-                  to="/charts"
-                  className={({ isActive }) =>
-                    `btn ${isActive ? "btn-primary" : "btn-outline-primary"} btn-sm px-3`
-                  }
-                >
-                  📈 Charts
-                </NavLink>
-                <NavLink
-                  to="/flippers"
-                  className={({ isActive }) =>
-                    `btn ${isActive ? "btn-primary" : "btn-outline-primary"} btn-sm px-3`
-                  }
-                >
-                  💸 Flippers
-                </NavLink>
-                <NavLink
-                  to="/analytics"
-                  className={({ isActive }) =>
-                    `btn ${isActive ? "btn-primary" : "btn-outline-primary"} btn-sm px-3`
-                  }
-                >
-                  🧮 Analytics
-                </NavLink>
-              </nav>
+              <button type="button" className="btn btn-outline-secondary btn-sm" onClick={handleReset}>
+                Reset
+              </button>
             </div>
+
+            <nav className="app-header__nav" aria-label="Primary">
+              <NavLink
+                to="/"
+                end
+                className={({ isActive }) =>
+                  `btn ${isActive ? "btn-primary" : "btn-outline-primary"} btn-sm px-3`
+                }
+              >
+                📊 Overview
+              </NavLink>
+              <NavLink
+                to="/charts"
+                className={({ isActive }) =>
+                  `btn ${isActive ? "btn-primary" : "btn-outline-primary"} btn-sm px-3`
+                }
+              >
+                📈 Charts
+              </NavLink>
+              <NavLink
+                to="/flippers"
+                className={({ isActive }) =>
+                  `btn ${isActive ? "btn-primary" : "btn-outline-primary"} btn-sm px-3`
+                }
+              >
+                💸 Flippers
+              </NavLink>
+              <NavLink
+                to="/analytics"
+                className={({ isActive }) =>
+                  `btn ${isActive ? "btn-primary" : "btn-outline-primary"} btn-sm px-3`
+                }
+              >
+                🧮 Analytics
+              </NavLink>
+            </nav>
           </div>
         </div>
       </header>
