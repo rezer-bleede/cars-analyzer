@@ -6,15 +6,15 @@ A modern, responsive web application for analyzing used car listings with real-t
 
 - **📊 Real-time Data Analysis**: Live data from R2 storage with automatic updates
 - **🔍 Advanced Filtering**: Search by brand, model, location, body type, and more
-- **📈 Interactive Charts**: Price trends, brand analysis, and time-based insights
+- **📈 Interactive Charts**: Expanded dashboards covering price trends, mileage correlations, body-type mix, and market discounts
 - **🔎 Intelligent Search**: Multi-select search box with instant autocomplete across make, model, city, specs, and more
 - **📱 Responsive Design**: Optimized for desktop, tablet, and mobile devices
 - **⚡ Fast Performance**: Paginated tables with 20 items per page
 - **🎨 Modern UI/UX**: Bootstrap 5 with industry-standard design patterns
 - **🕒 Latest Listings Highlight**: Automatically highlights newest entries
 - **📍 Location Intelligence**: City-based filtering and analysis
-- **🔝 Sticky Header Search**: Compact top bar with always-on search, inline filters, and quick navigation
-- **🧮 Analytics Workspace**: Redesigned insights hub with summary metrics, top segments, and a custom KPI builder
+- **🧭 Adaptive Sidebar Workspace**: Minimal header paired with a persistent sidebar for search, filters, and quick navigation
+- **🧮 Analytics Workspace**: Redesigned insight builder supporting metrics, summary tables, and charts with per-widget filters
 
 ## 🚀 Quick Start
 
@@ -109,9 +109,12 @@ The application expects JSON data with the following structure:
 - **Quick Access**: Click any row to jump straight to the live listing (opens in new tab)
 
 ### Charts Page
-- **Price vs Year**: Scatter plot showing price distribution by year
-- **Brand Analysis**: Bar chart of average prices by car make
-- **Time Series**: Line chart showing price trends over time
+- **Price vs model year**: Scatter plot revealing depreciation patterns by manufacturer and city
+- **Price vs mileage**: Mileage-to-price correlation with tooltips for make and model year context
+- **Average price by make**: Horizontal ranking of the most premium brands filtered by active dataset
+- **Body type distribution**: Pie chart highlighting segment share across sedans, SUVs, hatchbacks, and more
+- **Market discount by make**: Horizontal bars surfacing where listings sit below market averages
+- **Price & volume over time**: Dual-axis view combining average price with daily listing volume
 
 ## 🏗️ Architecture
 
@@ -144,7 +147,7 @@ src/
 - **Responsive**: Mobile-first design approach
 
 ### Key Components
-- **Header**: Compact design with stats and navigation
+- **Sidebar**: Dedicated navigation, search, and filters with mobile toggle
 - **Table**: Sortable, paginated data table with hover effects
 - **Cards**: Clean card-based layout for filters and charts
 - **Forms**: Accessible form controls with proper labels
@@ -170,7 +173,7 @@ npm test
 ### Testing
 
 - **Unit tests** cover interactive primitives like the intelligent search multi-select.
-- **Integration tests** exercise end-to-end analytics workflows, including KPI filtering and insight tables.
+- **Integration tests** exercise end-to-end analytics workflows, including widget filters, grouped tables, and chart previews.
 - Execute the full suite with `npm test`. Use `npm run test:watch` during development for rapid feedback.
 
 ### Code Quality

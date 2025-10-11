@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Analytics from "./Analytics.jsx";
 
@@ -90,20 +90,51 @@ describe("Analytics page", () => {
     expect(within(citiesTable).getByRole("rowheader", { name: "Abu Dhabi" })).toBeInTheDocument();
   });
 
-  it("allows adding filters to KPI cards", async () => {
+  it("allows adding filters to widgets", async () => {
     const user = userEvent.setup();
     render(<Analytics data={buildSampleData()} />);
 
-    const addFilterButton = screen.getByRole("button", { name: /\+ add filter/i });
+    const widgetCard = screen.getByPlaceholderText(/name your insight/i).closest(".card");
+    expect(widgetCard).not.toBeNull();
+
+    const addFilterButton = within(widgetCard).getByRole("button", { name: /\+ add filter/i });
     await user.click(addFilterButton);
 
-    const fieldSelect = screen.getByLabelText("Field");
+    const fieldSelect = within(widgetCard).getByLabelText("Field");
     await user.selectOptions(fieldSelect, "city_inferred");
 
-    const valueInput = screen.getByLabelText("Value");
+    const valueInput = within(widgetCard).getByLabelText("Value");
     await user.type(valueInput, "Dubai");
 
-    const matches = await screen.findByText(/Matches 3 listings/i);
+    const matches = await within(widgetCard).findByText(/Matches 3 listings/i);
     expect(matches).toBeInTheDocument();
+  });
+
+  it("supports summary table widgets", async () => {
+    const user = userEvent.setup();
+    render(<Analytics data={buildSampleData()} />);
+
+    const widgetCard = screen.getByPlaceholderText(/name your insight/i).closest(".card");
+    expect(widgetCard).not.toBeNull();
+
+    const typeSelect = within(widgetCard).getByLabelText(/select widget type/i);
+    await user.selectOptions(typeSelect, "table");
+
+    const summaryTable = await within(widgetCard).findByRole("table", { name: /summary by/i });
+    expect(within(summaryTable).getByRole("rowheader", { name: "Tesla" })).toBeInTheDocument();
+    expect(within(summaryTable).getByRole("rowheader", { name: "Nissan" })).toBeInTheDocument();
+  });
+
+  it("renders chart previews when configured", async () => {
+    const user = userEvent.setup();
+    render(<Analytics data={buildSampleData()} />);
+
+    const widgetCard = screen.getByPlaceholderText(/name your insight/i).closest(".card");
+    expect(widgetCard).not.toBeNull();
+
+    const typeSelect = within(widgetCard).getByLabelText(/select widget type/i);
+    await user.selectOptions(typeSelect, "chart");
+
+    expect(within(widgetCard).getByText(/Top \d+ groups/i)).toBeInTheDocument();
   });
 });
