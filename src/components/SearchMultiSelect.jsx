@@ -10,6 +10,7 @@ const SearchMultiSelect = ({
   onChange,
   placeholder = "Search…",
   name = "search",
+  id,
   ariaLabel = "Search listings",
 }) => {
   const containerRef = useRef(null);
@@ -118,7 +119,8 @@ const SearchMultiSelect = ({
     }
   };
 
-  const listboxId = `${name}-suggestions`;
+  const inputId = id || name;
+  const listboxId = `${inputId}-suggestions`;
 
   return (
     <div className="search-multiselect" ref={containerRef}>
@@ -150,6 +152,7 @@ const SearchMultiSelect = ({
             ref={inputRef}
             type="text"
             name={name}
+            id={inputId}
             value={query}
             placeholder={value.length ? "Add another…" : placeholder}
             onChange={(event) => {

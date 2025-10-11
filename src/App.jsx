@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { NavLink, Routes, Route } from "react-router-dom";
+import { NavLink, Routes, Route, useLocation } from "react-router-dom";
 import SearchMultiSelect from "./components/SearchMultiSelect.jsx";
 import Overview from "./pages/Overview.jsx";
 import Charts from "./pages/Charts.jsx";
@@ -148,6 +148,8 @@ export default function App() {
   const [dateFilter, setDateFilter] = useState("all");
   const [customWeeks, setCustomWeeks] = useState("4");
   const [resetSignal, setResetSignal] = useState(0);
+  const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const location = useLocation();
 
   const cityOptions = useMemo(
     () => [...new Set(data.map((d) => d.city_inferred).filter(Boolean))].sort(),
@@ -157,6 +159,10 @@ export default function App() {
     () => [...new Set(data.map((d) => d.details_body_type).filter(Boolean))].sort(),
     [data]
   );
+
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
 
   const searchSuggestions = useMemo(() => {
     const map = new Map();
@@ -382,36 +388,87 @@ export default function App() {
   };
 
   return (
-    <div className="min-vh-100 bg-light">
-      {/* Header */}
+    <div className="app-root min-vh-100 bg-light">
       <header className="app-header shadow-sm border-bottom sticky-top" style={{ zIndex: 1030 }}>
-        <div className="container-fluid py-3">
-          <div className="app-header__grid">
-            <div className="app-header__brand">
-              <h1 className="h5 mb-1 text-primary fw-bold">🚗 Used Cars Dashboard</h1>
-              <p className="text-muted small mb-0">Real-time car listings analysis</p>
+        <div className="container-fluid py-3 d-flex align-items-center justify-content-between gap-3">
+          <div>
+            <h1 className="h5 mb-0 text-primary fw-bold">🚗 Used Cars Dashboard</h1>
+            <p className="text-muted extra-small mb-0">Real-time listings intelligence</p>
+          </div>
+          <div className="d-flex align-items-center gap-2">
+            <dl className="app-header__mini-stats d-none d-md-flex mb-0" aria-label="Snapshot of filtered dataset">
+              <div>
+                <dt className="text-muted extra-small text-uppercase">Listings</dt>
+                <dd className="mb-0 fw-semibold">{stats.totalListings.toLocaleString()}</dd>
+              </div>
+              <div>
+                <dt className="text-muted extra-small text-uppercase">Avg. price</dt>
+                <dd className="mb-0 fw-semibold">AED {stats.avgPrice.toLocaleString()}</dd>
+              </div>
+              <div>
+                <dt className="text-muted extra-small text-uppercase">Cities</dt>
+                <dd className="mb-0 fw-semibold">{stats.cities}</dd>
+              </div>
+            </dl>
+            <button
+              type="button"
+              className="btn btn-outline-primary btn-sm d-lg-none"
+              onClick={() => setSidebarOpen((open) => !open)}
+              aria-expanded={isSidebarOpen}
+              aria-controls="app-sidebar"
+            >
+              {isSidebarOpen ? "Close menu" : "Open menu"}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div className={`app-shell ${isSidebarOpen ? "app-shell--sidebar-open" : ""}`}>
+        <button
+          type="button"
+          className={`app-sidebar__backdrop ${isSidebarOpen ? "show" : ""}`}
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden={!isSidebarOpen}
+        />
+        <aside
+          id="app-sidebar"
+          className={`app-sidebar ${isSidebarOpen ? "app-sidebar--open" : ""}`}
+          aria-label="Primary navigation and filters"
+        >
+          <div className="app-sidebar__inner">
+            <div className="app-sidebar__section app-sidebar__section--header">
+              <div>
+                <h2 className="h6 text-uppercase text-muted mb-1">Workspace</h2>
+                <p className="mb-0 fw-semibold">Exploration controls</p>
+              </div>
+              <button
+                type="button"
+                className="btn-close d-lg-none"
+                aria-label="Close sidebar"
+                onClick={() => setSidebarOpen(false)}
+              />
             </div>
 
-            <div className="app-header__stats" aria-label="Dataset summary">
-              <div>
-                <span className="app-header__stat-value text-primary">
-                  {stats.totalListings.toLocaleString()}
-                </span>
-                <span className="app-header__stat-label">Active listings</span>
-              </div>
-              <div>
-                <span className="app-header__stat-value text-success">
-                  AED {stats.avgPrice.toLocaleString()}
-                </span>
-                <span className="app-header__stat-label">Average price</span>
-              </div>
-              <div>
-                <span className="app-header__stat-value text-info">{stats.cities}</span>
-                <span className="app-header__stat-label">Cities covered</span>
-              </div>
-            </div>
+            <section className="app-sidebar__section" aria-label="Dataset summary">
+              <h3 className="app-sidebar__section-title">Summary</h3>
+              <dl className="app-sidebar__stats">
+                <div>
+                  <dt>Active listings</dt>
+                  <dd>{stats.totalListings.toLocaleString()}</dd>
+                </div>
+                <div>
+                  <dt>Average price</dt>
+                  <dd>AED {stats.avgPrice.toLocaleString()}</dd>
+                </div>
+                <div>
+                  <dt>Cities covered</dt>
+                  <dd>{stats.cities}</dd>
+                </div>
+              </dl>
+            </section>
 
-            <div className="app-header__search" role="search">
+            <section className="app-sidebar__section" aria-label="Search listings">
+              <h3 className="app-sidebar__section-title">Search</h3>
               <label className="visually-hidden" htmlFor="global-search-input">
                 Search listings
               </label>
@@ -425,120 +482,136 @@ export default function App() {
               <p className="text-muted extra-small mb-0">
                 Type to filter, press Enter to add custom terms, or pick from suggestions.
               </p>
-            </div>
+            </section>
 
-            <div className="app-header__filters">
-              <select
-                className="form-select form-select-sm"
-                value={cityFilter}
-                onChange={(e) => setCityFilter(e.target.value)}
-                aria-label="Filter by city"
-              >
-                <option value="">All cities</option>
-                {cityOptions.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-              <select
-                className="form-select form-select-sm"
-                value={bodyFilter}
-                onChange={(e) => setBodyFilter(e.target.value)}
-                aria-label="Filter by body type"
-              >
-                <option value="">All bodies</option>
-                {bodyOptions.map((b) => (
-                  <option key={b} value={b}>{b}</option>
-                ))}
-              </select>
-              <div className="app-header__date-filter">
-                <select
-                  className="form-select form-select-sm"
-                  value={dateFilter}
-                  onChange={(e) => setDateFilter(e.target.value)}
-                  aria-label="Filter by listing date"
-                >
-                  <option value="all">All dates</option>
-                  <option value="1d">Last 1 day</option>
-                  <option value="3d">Last 3 days</option>
-                  <option value="1w">Last 1 week</option>
-                  <option value="custom">Last N weeks…</option>
-                </select>
-                {dateFilter === "custom" && (
-                  <input
-                    type="number"
-                    className="form-control form-control-sm"
-                    min="1"
-                    max="52"
-                    step="1"
-                    value={customWeeks}
-                    onChange={(e) => setCustomWeeks(e.target.value)}
-                    placeholder="Weeks"
-                    aria-label="Enter number of weeks"
-                  />
-                )}
+            <section className="app-sidebar__section" aria-label="Filter listings">
+              <h3 className="app-sidebar__section-title">Filters</h3>
+              <div className="app-sidebar__filters">
+                <div>
+                  <label className="form-label form-label-sm" htmlFor="filter-city">City</label>
+                  <select
+                    id="filter-city"
+                    className="form-select form-select-sm"
+                    value={cityFilter}
+                    onChange={(e) => setCityFilter(e.target.value)}
+                  >
+                    <option value="">All cities</option>
+                    {cityOptions.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="form-label form-label-sm" htmlFor="filter-body">Body</label>
+                  <select
+                    id="filter-body"
+                    className="form-select form-select-sm"
+                    value={bodyFilter}
+                    onChange={(e) => setBodyFilter(e.target.value)}
+                  >
+                    <option value="">All bodies</option>
+                    {bodyOptions.map((b) => (
+                      <option key={b} value={b}>{b}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="form-label form-label-sm" htmlFor="filter-date">Listing date</label>
+                  <div className="d-flex gap-2">
+                    <select
+                      id="filter-date"
+                      className="form-select form-select-sm"
+                      value={dateFilter}
+                      onChange={(e) => setDateFilter(e.target.value)}
+                    >
+                      <option value="all">All dates</option>
+                      <option value="1d">Last 1 day</option>
+                      <option value="3d">Last 3 days</option>
+                      <option value="1w">Last 1 week</option>
+                      <option value="custom">Last N weeks…</option>
+                    </select>
+                    {dateFilter === "custom" && (
+                      <input
+                        type="number"
+                        className="form-control form-control-sm"
+                        min="1"
+                        max="52"
+                        step="1"
+                        value={customWeeks}
+                        onChange={(e) => setCustomWeeks(e.target.value)}
+                        placeholder="Weeks"
+                        aria-label="Enter number of weeks"
+                      />
+                    )}
+                  </div>
+                </div>
               </div>
-              <button type="button" className="btn btn-outline-secondary btn-sm" onClick={handleReset}>
-                Reset
+              <button type="button" className="btn btn-outline-secondary btn-sm w-100" onClick={handleReset}>
+                Reset filters
               </button>
-            </div>
+            </section>
 
-            <nav className="app-header__nav" aria-label="Primary">
-              <NavLink
-                to="/"
-                end
-                className={({ isActive }) =>
-                  `btn ${isActive ? "btn-primary" : "btn-outline-primary"} btn-sm px-3`
-                }
-              >
-                📊 Overview
-              </NavLink>
-              <NavLink
-                to="/charts"
-                className={({ isActive }) =>
-                  `btn ${isActive ? "btn-primary" : "btn-outline-primary"} btn-sm px-3`
-                }
-              >
-                📈 Charts
-              </NavLink>
-              <NavLink
-                to="/flippers"
-                className={({ isActive }) =>
-                  `btn ${isActive ? "btn-primary" : "btn-outline-primary"} btn-sm px-3`
-                }
-              >
-                💸 Flippers
-              </NavLink>
-              <NavLink
-                to="/analytics"
-                className={({ isActive }) =>
-                  `btn ${isActive ? "btn-primary" : "btn-outline-primary"} btn-sm px-3`
-                }
-              >
-                🧮 Analytics
-              </NavLink>
+            <nav className="app-sidebar__section" aria-label="Primary">
+              <h3 className="app-sidebar__section-title">Navigate</h3>
+              <div className="app-sidebar__nav">
+                <NavLink
+                  to="/"
+                  end
+                  className={({ isActive }) =>
+                    `app-sidebar__nav-link ${isActive ? "active" : ""}`
+                  }
+                >
+                  📊 Overview
+                </NavLink>
+                <NavLink
+                  to="/charts"
+                  className={({ isActive }) =>
+                    `app-sidebar__nav-link ${isActive ? "active" : ""}`
+                  }
+                >
+                  📈 Charts
+                </NavLink>
+                <NavLink
+                  to="/flippers"
+                  className={({ isActive }) =>
+                    `app-sidebar__nav-link ${isActive ? "active" : ""}`
+                  }
+                >
+                  💸 Flippers
+                </NavLink>
+                <NavLink
+                  to="/analytics"
+                  className={({ isActive }) =>
+                    `app-sidebar__nav-link ${isActive ? "active" : ""}`
+                  }
+                >
+                  🧮 Analytics
+                </NavLink>
+              </div>
             </nav>
           </div>
-        </div>
-      </header>
+        </aside>
 
-      {/* Main Content */}
-      <main className="container-fluid py-3">
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <Overview
-                data={filteredData}
-                resetSignal={resetSignal}
+        <main className="app-main">
+          <div className="app-main__inner container-fluid py-4">
+            <Routes>
+              <Route
+                path="/"
+                element={
+                  <Overview
+                    data={filteredData}
+                    resetSignal={resetSignal}
+                  />
+                }
               />
-            }
-          />
-          <Route path="/charts" element={<Charts data={filteredData} />} />
-          <Route path="/flippers" element={<Flippers data={filteredData} dateWindow={dateFilterMeta} />} />
-          <Route path="/analytics" element={<Analytics data={filteredData} />} />
-          <Route path="/car/:id" element={<CarDetail data={data} />} />
-        </Routes>
-      </main>
+              <Route path="/charts" element={<Charts data={filteredData} />} />
+              <Route path="/flippers" element={<Flippers data={filteredData} dateWindow={dateFilterMeta} />} />
+              <Route path="/analytics" element={<Analytics data={filteredData} />} />
+              <Route path="/car/:id" element={<CarDetail data={data} />} />
+            </Routes>
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
