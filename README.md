@@ -15,6 +15,7 @@ A modern, responsive web application for analyzing used car listings with real-t
 - **📍 Location Intelligence**: City-based filtering and analysis
 - **🧭 Adaptive Sidebar Workspace**: Minimal header paired with a persistent sidebar for search, filters, and quick navigation
 - **🧮 Analytics Workspace**: Redesigned insight builder supporting metrics, summary tables, and charts with per-widget filters
+- **📄 Export-ready Reports**: Build branded PDF summaries tailored to specific audiences in just a few clicks
 
 ## 🚀 Quick Start
 
@@ -109,12 +110,17 @@ The application expects JSON data with the following structure:
 - **Quick Access**: Click any row to jump straight to the live listing (opens in new tab)
 
 ### Charts Page
-- **Price vs model year**: Scatter plot revealing depreciation patterns by manufacturer and city
-- **Price vs mileage**: Mileage-to-price correlation with tooltips for make and model year context
+- **Top depreciating brands**: Interactive leaderboard that reveals the models losing value fastest for each brand
+- **Top value-retaining brands**: Highlights the marques that hold their price the best with clickable model insights
 - **Average price by make**: Horizontal ranking of the most premium brands filtered by active dataset
 - **Body type distribution**: Pie chart highlighting segment share across sedans, SUVs, hatchbacks, and more
 - **Market discount by make**: Horizontal bars surfacing where listings sit below market averages
 - **Price & volume over time**: Dual-axis view combining average price with daily listing volume
+
+### Reports Page
+- **Guided configuration**: Choose a focus city, timeframe, and which insights to include in the generated dossier
+- **Real-time preview**: Beautiful report preview with highlight metrics, demand pulses, body style mix, and analyst notes
+- **One-click export**: Download a polished PDF branded to your title and audience, perfect for stakeholders or clients
 
 ## 🏗️ Architecture
 
