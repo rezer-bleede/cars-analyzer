@@ -99,6 +99,8 @@ The application expects JSON data with the following structure:
 ]
 ```
 
+Secondary feeds exposed through `VITE_SECONDARY_JSON_URL` may expose listings using a slightly different schema (for example `detail_*` fields) or as newline-delimited JSON without wrapping them in an array. The loader automatically normalizes these shapes — including expanding mileage units such as `KMT` into kilometres — so you can mix and match feeds without additional preprocessing.
+
 ### Field mapping
 
 - `brand` is sourced from `details_make` (with fallbacks for similarly named keys).

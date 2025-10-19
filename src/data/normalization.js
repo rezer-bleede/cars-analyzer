@@ -12,8 +12,29 @@ export const cleanLabel = (value) => {
 export const normalizeExternalRow = (row) => {
   if (!row || typeof row !== "object") return null;
 
-  const mileageUnit = typeof row.detail_mileage_unit === "string" ? row.detail_mileage_unit.toLowerCase() : "";
-  const kilometers = mileageUnit.startsWith("km") ? row.detail_mileage_value : null;
+  const mileageUnitRaw =
+    typeof row.detail_mileage_unit === "string"
+      ? row.detail_mileage_unit.trim().toLowerCase()
+      : typeof row.mileage_unit === "string"
+        ? row.mileage_unit.trim().toLowerCase()
+        : "";
+
+  const mileageValueRaw = row.detail_mileage_value ?? row.mileage_value;
+  const mileageNumeric = Number(mileageValueRaw);
+  let kilometers = null;
+
+  if (Number.isFinite(mileageNumeric)) {
+    if (mileageUnitRaw.startsWith("kmt")) {
+      kilometers = mileageNumeric * 1000;
+    } else if (mileageUnitRaw.startsWith("km")) {
+      kilometers = mileageNumeric;
+    } else if (mileageUnitRaw.startsWith("mi")) {
+      kilometers = Math.round(mileageNumeric * 1.60934);
+    } else {
+      kilometers = mileageNumeric;
+    }
+  }
+
   const createdAt = row.created_at || row.created_at_iso || row.createdAt;
   const make = cleanLabel(row.make || row.detail_make);
   const model = cleanLabel(row.model || row.detail_model);
@@ -34,7 +55,7 @@ export const normalizeExternalRow = (row) => {
     details_body_type: bodyType,
     details_drive_wheel_configuration: row.detail_drive_wheel_configuration || row.drive_configuration,
     details_kilometers: kilometers ?? row.detail_mileage_value,
-    details_mileage_unit: row.detail_mileage_unit || row.mileage_unit || "km",
+    details_mileage_unit: kilometers != null ? "km" : row.detail_mileage_unit || row.mileage_unit || "km",
     details_color: cleanLabel(row.detail_color || row.color),
     details_regional_specs: row.regionalSpecs ? row.regionalSpecs.toUpperCase() : row.details_regional_specs,
     details_seller_type: cleanLabel(row.listingType || row.details_seller_type),
