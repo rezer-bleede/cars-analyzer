@@ -1,6 +1,6 @@
 # 🚗 Used Cars Dashboard
 
-A modern, responsive web application for analyzing used car listings with real-time data visualization and comprehensive filtering capabilities.
+A modern, responsive web application for analyzing used car listings with real-time data visualization and comprehensive filtering capabilities. 
 
 ## ✨ Features
 
