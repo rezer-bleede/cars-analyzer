@@ -18,6 +18,7 @@ import {
   hash32,
   toArray,
   parseUrlList,
+  parseJsonPayload,
   computeTrimmedAverage,
   formatRelativeTime
 } from "./utils";
@@ -187,7 +188,16 @@ export default function App() {
               if (optional) return [];
               throw new Error(`Fetch failed ${res.status}`);
             }
-            return res.json();
+            const text = await res.text();
+            try {
+              return parseJsonPayload(text);
+            } catch (error) {
+              if (optional) {
+                console.warn(`Optional source failed: ${url}`, error);
+                return [];
+              }
+              throw error;
+            }
           } catch (error) {
             if (optional) {
               console.warn(`Optional source failed: ${url}`, error);
@@ -227,7 +237,14 @@ export default function App() {
             const rows = [];
             let rawCount = 0;
             payloads.forEach((payload) => {
-              const arrayPayload = toArray(payload);
+              const arrayPayload = Array.isArray(payload)
+                ? payload
+                : (() => {
+                    const derived = toArray(payload);
+                    if (derived.length) return derived;
+                    if (payload && typeof payload === "object") return [payload];
+                    return [];
+                  })();
               rawCount += arrayPayload.length;
               arrayPayload.forEach((item) => {
                 const normalized = config.normalize ? config.normalize(item) : item;

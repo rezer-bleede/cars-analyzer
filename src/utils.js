@@ -43,6 +43,58 @@ export const parseUrlList = (value, { allowWindowLookup = false, windowKey } = {
   return normalizeToList(value);
 };
 
+const tryParseJson = (value) => {
+  try {
+    return { ok: true, value: JSON.parse(value) };
+  } catch (error) {
+    return { ok: false, error };
+  }
+};
+
+const sanitizeLooseArray = (text) => {
+  const trimmed = text.trim().replace(/^,+/, "").replace(/,+$/, "");
+  if (!trimmed) return "[]";
+  return `[${trimmed}]`;
+};
+
+export const parseJsonPayload = (payload) => {
+  if (payload == null) return [];
+  if (typeof payload === "object") return payload;
+
+  const text = String(payload).replace(/^\uFEFF/, "");
+  const trimmed = text.trim();
+  if (!trimmed) return [];
+
+  const direct = tryParseJson(trimmed);
+  if (direct.ok) return direct.value;
+
+  const wrapped = tryParseJson(sanitizeLooseArray(trimmed));
+  if (wrapped.ok) return wrapped.value;
+
+  const separated = trimmed
+    .replace(/}\s*{\s*/g, "}\n{")
+    .replace(/},\s*{\s*/g, "}\n{")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (separated.length) {
+    const entries = [];
+    for (const line of separated) {
+      const candidate = line.replace(/,+$/, "");
+      if (!candidate) continue;
+      const parsed = tryParseJson(candidate);
+      if (!parsed.ok) {
+        throw direct.error || parsed.error;
+      }
+      entries.push(parsed.value);
+    }
+    if (entries.length) return entries;
+  }
+
+  throw direct.error || new Error("Unable to parse JSON payload");
+};
+
 const candidateArrayKeys = [
   "data",
   "listings",

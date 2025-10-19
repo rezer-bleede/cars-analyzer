@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeTrimmedAverage, formatRelativeTime, toArray } from "./utils";
+import { computeTrimmedAverage, formatRelativeTime, parseJsonPayload, toArray } from "./utils";
 
 describe("computeTrimmedAverage", () => {
   it("excludes extreme outliers when computing the mean", () => {
@@ -41,5 +41,25 @@ describe("toArray", () => {
 
   it("returns an empty array when nothing is found", () => {
     expect(toArray({ foo: "bar" })).toEqual([]);
+  });
+});
+
+describe("parseJsonPayload", () => {
+  it("parses standard JSON arrays", () => {
+    const payload = parseJsonPayload('[{"id":1},{"id":2}]');
+    expect(Array.isArray(payload)).toBe(true);
+    expect(payload).toHaveLength(2);
+  });
+
+  it("parses newline delimited JSON objects", () => {
+    const payload = parseJsonPayload(' {"id":1}\n{"id":2} ');
+    expect(Array.isArray(payload)).toBe(true);
+    expect(payload.map((row) => row.id)).toEqual([1, 2]);
+  });
+
+  it("wraps comma-separated objects into an array", () => {
+    const payload = parseJsonPayload('{"id":1},\n{"id":2}');
+    expect(Array.isArray(payload)).toBe(true);
+    expect(payload).toHaveLength(2);
   });
 });

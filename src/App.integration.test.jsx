@@ -27,25 +27,10 @@ describe("App integration", () => {
         }
       ];
 
-      const secondaryPayload = [
-        {
-          id: "secondary-1",
-          detail_make: "honda",
-          detail_model: "civic",
-          detail_body_type: "body.coupe",
-          detail_vehicle_model_date: 2021,
-          detail_mileage_unit: "KM",
-          detail_mileage_value: 12000,
-          detail_offer_price: 85000,
-          detail_name: "Honda Civic 2021",
-          detail_item_url: "https://example.com/civic",
-          created_at_iso: "2024-04-16T00:00:00Z",
-          city: "dubai",
-        }
-      ];
+      const secondaryPayload = `{"id":"secondary-1","detail_make":"honda","detail_model":"civic","detail_body_type":"body.coupe","detail_vehicle_model_date":2021,"detail_mileage_unit":"KMT","detail_mileage_value":12,"detail_offer_price":85000,"detail_name":"Honda Civic 2021","detail_item_url":"https://example.com/civic","created_at_iso":"2024-04-16T00:00:00Z","city":"dubai"}`;
 
-      const data = url.includes("primary") ? primaryPayload : secondaryPayload;
-      return new Response(JSON.stringify(data), {
+      const body = url.includes("primary") ? JSON.stringify(primaryPayload) : `${secondaryPayload}\n`;
+      return new Response(body, {
         headers: { "Content-Type": "application/json" },
         status: 200,
       });
