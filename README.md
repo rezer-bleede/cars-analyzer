@@ -45,7 +45,7 @@ A modern, responsive web application for analyzing used car listings with real-t
    cat <<'ENV' > .env
    VITE_R2_JSON_URL=https://your-json-url-here
    # Optional enrichment feed(s)
-   # VITE_CRSWTCH_JSON_URL=https://carswitch-feed.json
+   # VITE_SECONDARY_JSON_URL=https://secondary-feed.json
    ENV
    ```
 
@@ -66,7 +66,7 @@ A modern, responsive web application for analyzing used car listings with real-t
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `VITE_R2_JSON_URL` | URL (or comma-separated list) to your primary JSON data source(s) | `https://pub-xxx.r2.dev/data/listings.json` |
-| `VITE_CRSWTCH_JSON_URL` | Optional CarSwitch feed URL(s) for enrichment | `https://example.com/carswitch.json` |
+| `VITE_SECONDARY_JSON_URL` | Optional secondary feed URL(s) for enrichment | `https://example.com/secondary.json` |
 
 ### Data Format
 
@@ -108,8 +108,8 @@ The application expects JSON data with the following structure:
 
 ### Multiple source feeds
 
-- Both `VITE_R2_JSON_URL` and `VITE_CRSWTCH_JSON_URL` accept either a single URL or a comma/newline-delimited list of URLs. Arrays expressed as JSON (`["https://…", "https://…"]`) are also supported.
-- Additional feeds can be injected at runtime with `window.__R2_JSON_URL__` or `window.__CRSWTCH_JSON_URL__` before the app boots.
+- Both `VITE_R2_JSON_URL` and `VITE_SECONDARY_JSON_URL` accept either a single URL or a comma/newline-delimited list of URLs. Arrays expressed as JSON (`["https://…", "https://…"]`) are also supported.
+- Additional feeds can be injected at runtime with `window.__R2_JSON_URL__` or `window.__SECONDARY_JSON_URL__` before the app boots.
 - The Admin console surfaces freshness, coverage, and trimmed price averages for each configured source so you can quickly validate ingestion health.
 
 ## 📱 Usage

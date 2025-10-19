@@ -8,6 +8,7 @@ import Flippers from "./pages/Flippers.jsx";
 import Analytics from "./pages/Analytics.jsx";
 import ReportBuilder from "./pages/ReportBuilder.jsx";
 import Admin from "./pages/Admin.jsx";
+import { normalizeExternalRow } from "./data/normalization.js";
 import {
   num,
   normalizeTimestamp,
@@ -81,57 +82,6 @@ const describeDateFilter = (filter, customWeeks) => {
     default:
       return { label: "All dates", cutoffMs: null, days: null };
   }
-};
-
-const cleanLabel = (value) => {
-  if (typeof value !== "string") return value ?? "";
-  const base = value.includes(".") ? value.split(".").pop() : value;
-  const spaced = base.replace(/[_-]+/g, " ").trim();
-  if (!spaced) return "";
-  return spaced
-    .split(/\s+/)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-};
-
-const normalizeCarswitchRow = (row) => {
-  if (!row || typeof row !== "object") return null;
-
-  const mileageUnit = typeof row.detail_mileage_unit === "string" ? row.detail_mileage_unit.toLowerCase() : "";
-  const kilometers = mileageUnit.startsWith("km") ? row.detail_mileage_value : null;
-  const createdAt = row.created_at || row.created_at_iso || row.createdAt;
-  const make = cleanLabel(row.make || row.detail_make);
-  const model = cleanLabel(row.model || row.detail_model);
-  const bodyType = (() => {
-    if (typeof row.detail_body_type !== "string") return cleanLabel(row.detail_body_type);
-    const base = row.detail_body_type.split(".").pop();
-    const label = cleanLabel(base);
-    return label.length <= 4 ? label.toUpperCase() : label;
-  })();
-
-  return {
-    ...row,
-    price: row.price ?? row.detail_offer_price ?? row.price_total,
-    details_make: make,
-    details_model: model,
-    details_year: row.detail_vehicle_model_date || row.year,
-    details_transmission: row.detail_vehicle_transmission || row.transmission,
-    details_body_type: bodyType,
-    details_drive_wheel_configuration: row.detail_drive_wheel_configuration || row.drive_configuration,
-    details_kilometers: kilometers ?? row.detail_mileage_value,
-    details_mileage_unit: row.detail_mileage_unit || row.mileage_unit || "km",
-    details_color: cleanLabel(row.detail_color || row.color),
-    details_regional_specs: row.regionalSpecs ? row.regionalSpecs.toUpperCase() : row.details_regional_specs,
-    details_seller_type: cleanLabel(row.listingType || row.details_seller_type),
-    url: row.detail_url || row.detail_item_url || row.url,
-    permalink: row.detail_item_url || row.permalink,
-    title_en: row.detail_name || row.title_en,
-    created_at: createdAt,
-    created_at_iso: row.created_at_iso || createdAt,
-    city_inferred: cleanLabel(row.city || row.city_inferred),
-    area_inferred: cleanLabel(row.area || row.area_inferred),
-    source: row.source || "crswtch",
-  };
 };
 
 export default function App() {
@@ -220,7 +170,7 @@ export default function App() {
     (async () => {
       try {
         const primaryUrls = resolveSourceUrls(import.meta.env.VITE_R2_JSON_URL, "__R2_JSON_URL__");
-        const carswitchUrls = resolveSourceUrls(import.meta.env.VITE_CRSWTCH_JSON_URL, "__CRSWTCH_JSON_URL__");
+        const secondaryUrls = resolveSourceUrls(import.meta.env.VITE_SECONDARY_JSON_URL, "__SECONDARY_JSON_URL__");
 
         if (!primaryUrls.length) {
           throw new Error("R2 JSON URL not set. Set VITE_R2_JSON_URL or window.__R2_JSON_URL__.");
@@ -256,11 +206,11 @@ export default function App() {
             normalize: (row) => ({ ...row, source: row?.source || "primary" })
           },
           {
-            key: "carswitch",
-            label: "CarSwitch",
-            urls: carswitchUrls,
+            key: "secondary",
+            label: "Secondary feed",
+            urls: secondaryUrls,
             optional: true,
-            normalize: (row) => normalizeCarswitchRow({ ...row, source: row?.source || "carswitch" })
+            normalize: (row) => normalizeExternalRow({ ...row, source: row?.source || "secondary" })
           }
         ];
 
@@ -325,9 +275,9 @@ export default function App() {
         });
 
         // Compute market averages for the last 3 months by (brand,model,year)
-        const now = Date.now();
+        const pricingNow = Date.now();
         const threeMonthsMs = 90 * 24 * 60 * 60 * 1000; // approx 3 months
-        const cutoff = now - threeMonthsMs;
+        const cutoff = pricingNow - threeMonthsMs;
 
         // Build segment aggregates
         const segMap = new Map(); // key => prices array
@@ -383,7 +333,7 @@ export default function App() {
 
         setData(rows);
 
-        const now = Date.now();
+        const summaryNow = Date.now();
         const summaryMap = new Map();
         for (const source of fetchedSources) {
           if (!summaryMap.has(source.key)) {
@@ -443,7 +393,7 @@ export default function App() {
             averagePrice: Number.isFinite(average) ? average : null,
             effectiveSample: count,
             removedOutliers: removed,
-            freshnessLabel: Number.isFinite(meta.latestMs) ? formatRelativeTime(meta.latestMs, now) : "No timestamp",
+            freshnessLabel: Number.isFinite(meta.latestMs) ? formatRelativeTime(meta.latestMs, summaryNow) : "No timestamp",
             coverageDays: Number.isFinite(rangeMs) ? Math.max(0, Math.round(rangeMs / (24 * 60 * 60 * 1000))) : null
           };
         });
