@@ -7,14 +7,19 @@ import CarDetail from "./pages/CarDetail.jsx";
 import Flippers from "./pages/Flippers.jsx";
 import Analytics from "./pages/Analytics.jsx";
 import ReportBuilder from "./pages/ReportBuilder.jsx";
-import { num, normalizeTimestamp, deriveBrand, deriveModel, deriveFullLocation, hash32 } from "./utils";
-
-const R2_URL =
-  import.meta.env.VITE_R2_JSON_URL?.trim() ||
-  (typeof window !== "undefined" && window.__R2_JSON_URL__) ||
-  "";
-
-const CRSWTCH_URL = import.meta.env.VITE_CRSWTCH_JSON_URL?.trim() || "";
+import Admin from "./pages/Admin.jsx";
+import {
+  num,
+  normalizeTimestamp,
+  deriveBrand,
+  deriveModel,
+  deriveFullLocation,
+  hash32,
+  toArray,
+  parseUrlList,
+  computeTrimmedAverage,
+  formatRelativeTime
+} from "./utils";
 
 const SEARCH_FIELDS = [
   "details_make",
@@ -89,16 +94,6 @@ const cleanLabel = (value) => {
     .join(" ");
 };
 
-const toArray = (payload) => {
-  if (Array.isArray(payload)) return payload;
-  if (payload && typeof payload === "object") {
-    for (const key of ["data", "listings", "results", "items", "rows"]) {
-      if (Array.isArray(payload[key])) return payload[key];
-    }
-  }
-  return [];
-};
-
 const normalizeCarswitchRow = (row) => {
   if (!row || typeof row !== "object") return null;
 
@@ -143,6 +138,7 @@ export default function App() {
   const [data, setData] = useState([]);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(true);
+  const [sourceSummaries, setSourceSummaries] = useState([]);
   const [searchTokens, setSearchTokens] = useState([]);
   const [cityFilter, setCityFilter] = useState("");
   const [bodyFilter, setBodyFilter] = useState("");
@@ -212,9 +208,24 @@ export default function App() {
   }, [data]);
 
   useEffect(() => {
+    const resolveSourceUrls = (value, windowKey) => {
+      const direct = parseUrlList(value);
+      if (direct.length) return direct;
+      if (typeof window !== "undefined" && windowKey) {
+        return parseUrlList(window[windowKey]);
+      }
+      return [];
+    };
+
     (async () => {
       try {
-        if (!R2_URL) throw new Error("R2 JSON URL not set. Set VITE_R2_JSON_URL or window.__R2_JSON_URL__.");
+        const primaryUrls = resolveSourceUrls(import.meta.env.VITE_R2_JSON_URL, "__R2_JSON_URL__");
+        const carswitchUrls = resolveSourceUrls(import.meta.env.VITE_CRSWTCH_JSON_URL, "__CRSWTCH_JSON_URL__");
+
+        if (!primaryUrls.length) {
+          throw new Error("R2 JSON URL not set. Set VITE_R2_JSON_URL or window.__R2_JSON_URL__.");
+        }
+
         const fetchJson = async (url, { optional = false } = {}) => {
           if (!url) {
             if (optional) return [];
@@ -236,17 +247,49 @@ export default function App() {
           }
         };
 
-        const [primaryPayload, carswitchPayload] = await Promise.all([
-          fetchJson(R2_URL),
-          fetchJson(CRSWTCH_URL, { optional: true })
-        ]);
+        const sourceConfigs = [
+          {
+            key: "primary",
+            label: "Primary feed",
+            urls: primaryUrls,
+            optional: false,
+            normalize: (row) => ({ ...row, source: row?.source || "primary" })
+          },
+          {
+            key: "carswitch",
+            label: "CarSwitch",
+            urls: carswitchUrls,
+            optional: true,
+            normalize: (row) => normalizeCarswitchRow({ ...row, source: row?.source || "carswitch" })
+          }
+        ];
 
-        const baseRows = toArray(primaryPayload);
-        const carswitchRows = toArray(carswitchPayload)
-          .map(normalizeCarswitchRow)
-          .filter(Boolean);
+        const fetchedSources = await Promise.all(
+          sourceConfigs.map(async (config) => {
+            if (!config.urls.length) {
+              return { ...config, rows: [], rawCount: 0 };
+            }
 
-        const rows = [...baseRows, ...carswitchRows];
+            const payloads = await Promise.all(
+              config.urls.map((url) => fetchJson(url, { optional: config.optional }))
+            );
+
+            const rows = [];
+            let rawCount = 0;
+            payloads.forEach((payload) => {
+              const arrayPayload = toArray(payload);
+              rawCount += arrayPayload.length;
+              arrayPayload.forEach((item) => {
+                const normalized = config.normalize ? config.normalize(item) : item;
+                if (normalized) rows.push(normalized);
+              });
+            });
+
+            return { ...config, rows, rawCount };
+          })
+        );
+
+        const rows = fetchedSources.flatMap((entry) => entry.rows).filter(Boolean);
 
         rows.forEach((d) => {
           d.price = num(d.price);
@@ -287,7 +330,7 @@ export default function App() {
         const cutoff = now - threeMonthsMs;
 
         // Build segment aggregates
-        const segMap = new Map(); // key => {sum,count}
+        const segMap = new Map(); // key => prices array
         for (const d of rows) {
           if (!Number.isFinite(d.price)) continue;
           if (!Number.isFinite(d.created_at_epoch_ms) || d.created_at_epoch_ms < cutoff) continue;
@@ -296,10 +339,14 @@ export default function App() {
           const year = d.details_year;
           if (!make || !model || !Number.isFinite(year)) continue;
           const key = `${make}|${model}|${year}`.toLowerCase();
-          const cur = segMap.get(key) || { sum: 0, count: 0 };
-          cur.sum += d.price;
-          cur.count += 1;
-          segMap.set(key, cur);
+          if (!segMap.has(key)) segMap.set(key, []);
+          segMap.get(key).push(d.price);
+        }
+
+        const segStats = new Map();
+        for (const [key, prices] of segMap.entries()) {
+          const { average, count } = computeTrimmedAverage(prices);
+          segStats.set(key, { average, count });
         }
 
         // Apply market_avg & market_diff to each row (diff = market_avg - price)
@@ -311,9 +358,9 @@ export default function App() {
           let market_count = 0;
           if (make && model && Number.isFinite(year)) {
             const key = `${make}|${model}|${year}`.toLowerCase();
-            const agg = segMap.get(key);
-            if (agg && agg.count > 0) {
-              market_avg = Math.round(agg.sum / agg.count);
+            const agg = segStats.get(key);
+            if (agg && agg.count > 0 && Number.isFinite(agg.average)) {
+              market_avg = agg.average;
               market_count = agg.count;
             }
           }
@@ -335,6 +382,73 @@ export default function App() {
         }
 
         setData(rows);
+
+        const now = Date.now();
+        const summaryMap = new Map();
+        for (const source of fetchedSources) {
+          if (!summaryMap.has(source.key)) {
+            summaryMap.set(source.key, {
+              key: source.key,
+              label: source.label,
+              urls: source.urls,
+              listingCount: 0,
+              latestMs: null,
+              earliestMs: null,
+              prices: [],
+              rawCount: source.rawCount || 0
+            });
+          }
+        }
+
+        for (const d of rows) {
+          const key = d.source || "primary";
+          if (!summaryMap.has(key)) {
+            summaryMap.set(key, {
+              key,
+              label: key,
+              urls: [],
+              listingCount: 0,
+              latestMs: null,
+              earliestMs: null,
+              prices: [],
+              rawCount: 0
+            });
+          }
+          const meta = summaryMap.get(key);
+          meta.listingCount += 1;
+          if (Number.isFinite(d.created_at_epoch_ms)) {
+            meta.latestMs = meta.latestMs == null ? d.created_at_epoch_ms : Math.max(meta.latestMs, d.created_at_epoch_ms);
+            meta.earliestMs = meta.earliestMs == null ? d.created_at_epoch_ms : Math.min(meta.earliestMs, d.created_at_epoch_ms);
+          }
+          if (Number.isFinite(d.price)) {
+            meta.prices.push(d.price);
+          }
+        }
+
+        const summaries = Array.from(summaryMap.values()).map((meta) => {
+          const { average, count, removed } = computeTrimmedAverage(meta.prices);
+          const rangeMs =
+            Number.isFinite(meta.latestMs) && Number.isFinite(meta.earliestMs)
+              ? meta.latestMs - meta.earliestMs
+              : null;
+          return {
+            key: meta.key,
+            label: meta.label,
+            urls: meta.urls,
+            listingCount: meta.listingCount,
+            rawCount: meta.rawCount,
+            lastUpdatedMs: meta.latestMs,
+            lastUpdatedIso: meta.latestMs ? new Date(meta.latestMs).toISOString() : "",
+            oldestIso: meta.earliestMs ? new Date(meta.earliestMs).toISOString() : "",
+            averagePrice: Number.isFinite(average) ? average : null,
+            effectiveSample: count,
+            removedOutliers: removed,
+            freshnessLabel: Number.isFinite(meta.latestMs) ? formatRelativeTime(meta.latestMs, now) : "No timestamp",
+            coverageDays: Number.isFinite(rangeMs) ? Math.max(0, Math.round(rangeMs / (24 * 60 * 60 * 1000))) : null
+          };
+        });
+
+        setSourceSummaries(summaries.sort((a, b) => a.label.localeCompare(b.label)));
       } catch (e) {
         setErr(String(e.message || e));
       } finally {
@@ -369,9 +483,8 @@ export default function App() {
 
   const stats = useMemo(() => {
     const totalListings = filteredData.length;
-    const avgPrice = totalListings > 0
-      ? Math.round(filteredData.reduce((sum, d) => sum + (d.price || 0), 0) / totalListings)
-      : 0;
+    const priceStats = computeTrimmedAverage(filteredData.map((d) => d.price));
+    const avgPrice = Number.isFinite(priceStats.average) ? priceStats.average : 0;
     const cities = new Set(filteredData.map((d) => d.city_inferred).filter(Boolean)).size;
     return { totalListings, avgPrice, cities };
   }, [filteredData]);
@@ -596,6 +709,14 @@ export default function App() {
                 >
                   📄 Reports
                 </NavLink>
+                <NavLink
+                  to="/admin"
+                  className={({ isActive }) =>
+                    `app-sidebar__nav-link ${isActive ? "active" : ""}`
+                  }
+                >
+                  🛠️ Admin
+                </NavLink>
               </div>
             </nav>
           </div>
@@ -617,6 +738,7 @@ export default function App() {
               <Route path="/flippers" element={<Flippers data={filteredData} dateWindow={dateFilterMeta} />} />
               <Route path="/analytics" element={<Analytics data={filteredData} />} />
               <Route path="/reports" element={<ReportBuilder data={filteredData} />} />
+              <Route path="/admin" element={<Admin data={data} sources={sourceSummaries} />} />
               <Route path="/car/:id" element={<CarDetail data={data} />} />
             </Routes>
           </div>

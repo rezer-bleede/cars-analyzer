@@ -16,6 +16,7 @@ A modern, responsive web application for analyzing used car listings with real-t
 - **🧭 Adaptive Sidebar Workspace**: Minimal header paired with a persistent sidebar for search, filters, and quick navigation
 - **🧮 Analytics Workspace**: Redesigned insight builder supporting metrics, summary tables, and charts with per-widget filters
 - **📄 Export-ready Reports**: Build branded PDF summaries tailored to specific audiences in just a few clicks
+- **🛠️ Admin Console**: Monitor ingestion freshness, per-source listing counts, and pricing sanity checks at a glance
 
 ## 🚀 Quick Start
 
@@ -41,7 +42,11 @@ A modern, responsive web application for analyzing used car listings with real-t
 3. **Set up environment variables**
    ```bash
    # Create .env file
-   echo "VITE_R2_JSON_URL=https://your-json-url-here" > .env
+   cat <<'ENV' > .env
+   VITE_R2_JSON_URL=https://your-json-url-here
+   # Optional enrichment feed(s)
+   # VITE_CRSWTCH_JSON_URL=https://carswitch-feed.json
+   ENV
    ```
 
 4. **Start development server**
@@ -60,7 +65,8 @@ A modern, responsive web application for analyzing used car listings with real-t
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `VITE_R2_JSON_URL` | URL to your JSON data source | `https://pub-xxx.r2.dev/data/listings.json` |
+| `VITE_R2_JSON_URL` | URL (or comma-separated list) to your primary JSON data source(s) | `https://pub-xxx.r2.dev/data/listings.json` |
+| `VITE_CRSWTCH_JSON_URL` | Optional CarSwitch feed URL(s) for enrichment | `https://example.com/carswitch.json` |
 
 ### Data Format
 
@@ -100,6 +106,12 @@ The application expects JSON data with the following structure:
 - `location_full` is rendered from the richest available location hierarchy (`location_path`, `location_full`, etc.) and falls back to `city_inferred` + `neighbourhood_en` when present.
 - The listings table surfaces `details_make`, `details_model`, `neighbourhood_en`, `details_regional_specs`, and `details_seller_type` directly for clarity.
 
+### Multiple source feeds
+
+- Both `VITE_R2_JSON_URL` and `VITE_CRSWTCH_JSON_URL` accept either a single URL or a comma/newline-delimited list of URLs. Arrays expressed as JSON (`["https://…", "https://…"]`) are also supported.
+- Additional feeds can be injected at runtime with `window.__R2_JSON_URL__` or `window.__CRSWTCH_JSON_URL__` before the app boots.
+- The Admin console surfaces freshness, coverage, and trimmed price averages for each configured source so you can quickly validate ingestion health.
+
 ## 📱 Usage
 
 ### Overview Page
@@ -121,6 +133,11 @@ The application expects JSON data with the following structure:
 - **Guided configuration**: Choose a focus city, timeframe, and which insights to include in the generated dossier
 - **Real-time preview**: Beautiful report preview with highlight metrics, demand pulses, body style mix, and analyst notes
 - **One-click export**: Download a polished PDF branded to your title and audience, perfect for stakeholders or clients
+
+### Admin Console
+- **Feed visibility**: Quickly inspect how many listings arrived per feed and when they were last refreshed
+- **Freshness monitoring**: Human-readable freshness labels and ISO timestamps highlight stale sources immediately
+- **Quality guardrails**: Trimmed averages surface the effective sample size and how many outliers were excluded from pricing calculations
 
 ## 🏗️ Architecture
 
@@ -178,9 +195,13 @@ npm test
 
 ### Testing
 
-- **Unit tests** cover interactive primitives like the intelligent search multi-select.
-- **Integration tests** exercise end-to-end analytics workflows, including widget filters, grouped tables, and chart previews.
+- **Unit tests** cover helpers (including outlier-resistant averages and data loaders) plus interactive primitives like the intelligent search multi-select.
+- **Integration tests** exercise end-to-end analytics workflows, including widget filters, grouped tables, chart previews, and the new admin console experience.
 - Execute the full suite with `npm test`. Use `npm run test:watch` during development for rapid feedback.
+
+### Data quality
+- Listing-level averages now use robust statistical trimming to exclude anomalous prices before computing market benchmarks.
+- The Admin console reports how many outliers were trimmed per source so data issues can be investigated quickly.
 
 ### Code Quality
 - ESLint configuration for code consistency

@@ -55,7 +55,7 @@ export default function Flippers({ data, dateWindow }) {
       <div className="card border-0 shadow-sm">
         <div className="card-body p-0">
           <div className="table-responsive" style={{ overflowX: "auto" }}>
-            <table className="table table-hover table-striped mb-0 text-nowrap align-middle" style={{ minWidth: "1150px" }}>
+            <table className="table table-hover table-striped mb-0 text-nowrap align-middle" style={{ minWidth: "1080px" }}>
               <thead className="table-light">
                 <tr>
                   <th>When</th>
@@ -63,7 +63,6 @@ export default function Flippers({ data, dateWindow }) {
                   <th>Model</th>
                   <th>Year</th>
                   <th>Price</th>
-                  <th>Market Discount</th>
                   <th>Discount %</th>
                   <th>Location</th>
                   <th>Seller Type</th>
@@ -84,8 +83,12 @@ export default function Flippers({ data, dateWindow }) {
                         <div className="small text-muted">Avg: {fmtPrice(d.market_avg)}</div>
                       )}
                     </td>
-                    <td className="fw-bold text-success">{Number.isFinite(d.market_diff) ? fmtPrice(d.market_diff) : 'N/A'}</td>
-                    <td className="fw-bold text-success">{formatPercent(d.market_discount_pct)}</td>
+                    <td className="fw-bold text-success">
+                      <div>{formatPercent(d.market_discount_pct)}</div>
+                      {Number.isFinite(d.market_diff) && (
+                        <div className="text-muted small">{fmtPrice(d.market_diff)} vs. market</div>
+                      )}
+                    </td>
                     <td className="text-info">{esc(d.location_full || d.city_inferred || '')}</td>
                     <td>{esc(d.details_seller_type || '')}</td>
                     <td>{esc(d.details_regional_specs || '')}</td>
