@@ -7,6 +7,175 @@ export const num = (v) => {
   return Number.isFinite(n) ? n : null;
 };
 
+const normalizeToList = (value) => {
+  if (!value && value !== 0) return [];
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => (typeof entry === "string" ? entry.trim() : String(entry)))
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+    if ((trimmed.startsWith("[") && trimmed.endsWith("]")) || trimmed.startsWith("{")) {
+      try {
+        return normalizeToList(JSON.parse(trimmed));
+      } catch (error) {
+        console.warn("Failed to parse JSON list", error);
+      }
+    }
+    return trimmed
+      .split(/[\n,]+/)
+      .map((segment) => segment.trim())
+      .filter(Boolean);
+  }
+  if (typeof value === "object") {
+    return normalizeToList(Object.values(value || {}));
+  }
+  return [String(value)].filter(Boolean);
+};
+
+export const parseUrlList = (value, { allowWindowLookup = false, windowKey } = {}) => {
+  if (allowWindowLookup && !value && typeof window !== "undefined" && windowKey) {
+    return parseUrlList(window[windowKey]);
+  }
+  return normalizeToList(value);
+};
+
+const candidateArrayKeys = [
+  "data",
+  "listings",
+  "results",
+  "items",
+  "rows",
+  "cars",
+  "vehicles",
+  "entries",
+  "records",
+  "payload",
+  "response",
+  "dataset"
+];
+
+const findFirstArray = (value, depth = 0) => {
+  if (!value || depth > 3) return [];
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "object") return [];
+
+  for (const key of candidateArrayKeys) {
+    if (Array.isArray(value[key])) {
+      return value[key];
+    }
+  }
+
+  for (const key of candidateArrayKeys) {
+    if (value[key] && typeof value[key] === "object") {
+      const nested = findFirstArray(value[key], depth + 1);
+      if (nested.length) return nested;
+    }
+  }
+
+  for (const nestedValue of Object.values(value)) {
+    if (Array.isArray(nestedValue)) return nestedValue;
+  }
+
+  for (const nestedValue of Object.values(value)) {
+    if (nestedValue && typeof nestedValue === "object") {
+      const nested = findFirstArray(nestedValue, depth + 1);
+      if (nested.length) return nested;
+    }
+  }
+
+  return [];
+};
+
+export const toArray = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (payload && typeof payload === "object") {
+    const direct = findFirstArray(payload);
+    if (direct.length) return direct;
+  }
+  return [];
+};
+
+const quantile = (sortedValues, q) => {
+  const n = sortedValues.length;
+  if (!n) return null;
+  if (n === 1) return sortedValues[0];
+  const pos = (n - 1) * q;
+  const base = Math.floor(pos);
+  const rest = pos - base;
+  if (base + 1 < n) {
+    return sortedValues[base] + rest * (sortedValues[base + 1] - sortedValues[base]);
+  }
+  return sortedValues[base];
+};
+
+export const computeTrimmedAverage = (values, { iqrFactor = 1.5, maxStdDevs = 3 } = {}) => {
+  const valid = values.filter((v) => Number.isFinite(v));
+  if (!valid.length) return { average: null, count: 0, removed: 0 };
+  const sorted = valid.slice().sort((a, b) => a - b);
+
+  let lower = sorted[0];
+  let upper = sorted[sorted.length - 1];
+  const q1 = quantile(sorted, 0.25);
+  const q3 = quantile(sorted, 0.75);
+  const iqr = q3 != null && q1 != null ? q3 - q1 : null;
+
+  if (Number.isFinite(iqr) && iqr > 0) {
+    lower = q1 - iqrFactor * iqr;
+    upper = q3 + iqrFactor * iqr;
+  } else {
+    const median = quantile(sorted, 0.5) ?? sorted[Math.floor(sorted.length / 2)];
+    const deviations = sorted.map((v) => Math.abs(v - median));
+    const mad = quantile(deviations, 0.5);
+    if (mad && mad > 0) {
+      const scale = mad * 1.4826;
+      lower = median - maxStdDevs * scale;
+      upper = median + maxStdDevs * scale;
+    } else {
+      const tolerance = Math.max(500, Math.abs(median) * 0.1);
+      lower = median - tolerance;
+      upper = median + tolerance;
+    }
+  }
+
+  let filtered = sorted.filter((v) => v >= lower && v <= upper);
+  if (!filtered.length) filtered = sorted;
+  const sum = filtered.reduce((acc, v) => acc + v, 0);
+  return {
+    average: Math.round(sum / filtered.length),
+    count: filtered.length,
+    removed: sorted.length - filtered.length
+  };
+};
+
+export const formatRelativeTime = (timestamp, now = Date.now()) => {
+  if (!Number.isFinite(timestamp)) return "No timestamp";
+  const diffMs = now - timestamp;
+  if (diffMs < 0) {
+    const aheadMs = Math.abs(diffMs);
+    const aheadMinutes = Math.round(aheadMs / (60 * 1000));
+    if (aheadMinutes < 60) return `in ${aheadMinutes} min`;
+    const aheadHours = Math.round(aheadMinutes / 60);
+    if (aheadHours < 48) return `in ${aheadHours} hr`;
+    const aheadDays = Math.round(aheadHours / 24);
+    return `in ${aheadDays} days`;
+  }
+  const minutes = Math.round(diffMs / (60 * 1000));
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 48) return `${hours} hr ago`;
+  const days = Math.round(hours / 24);
+  if (days < 60) return `${days} days ago`;
+  const months = Math.round(days / 30);
+  if (months < 24) return `${months} mo ago`;
+  const years = Math.round(months / 12);
+  return `${years} yr ago`;
+};
+
 export const cmp = (a, b) => {
   if (a == null && b == null) return 0;
   if (a == null) return 1;
