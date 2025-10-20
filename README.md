@@ -140,6 +140,7 @@ Secondary feeds exposed through `VITE_SECONDARY_JSON_URL` may expose listings us
 - **Feed visibility**: Quickly inspect how many listings arrived per feed and when they were last refreshed
 - **Freshness monitoring**: Human-readable freshness labels and ISO timestamps highlight stale sources immediately
 - **Quality guardrails**: Trimmed averages surface the effective sample size and how many outliers were excluded from pricing calculations
+- **Grouped vendors**: Each configured feed consolidates the vendor `source` labels it ingested (for example, "CSWITCH"), so secondary feeds no longer appear as fragmented duplicates.
 
 ## 🏗️ Architecture
 

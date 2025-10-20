@@ -83,7 +83,19 @@ export default function Admin({ data = [], sources = [] }) {
                 <tbody>
                   {sources.map((src) => (
                     <tr key={src.key}>
-                      <th scope="row">{esc(src.label || src.key)}</th>
+                      <th scope="row">
+                        {esc(src.label || src.key)}
+                        {src.datasetSourceLabels && src.datasetSourceLabels.length > 0 && (
+                          <div className="text-muted small">
+                            {src.datasetSourceLabels.map((label, index) => (
+                              <React.Fragment key={`${src.key}-${label}-${index}`}>
+                                {index > 0 ? ", " : ""}
+                                {esc(label)}
+                              </React.Fragment>
+                            ))}
+                          </div>
+                        )}
+                      </th>
                       <td>
                         <div className="fw-semibold">{src.listingCount.toLocaleString()}</div>
                         <div className="text-muted small">
