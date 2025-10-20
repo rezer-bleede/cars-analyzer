@@ -24,6 +24,7 @@ describe("App integration", () => {
           details_year: 2020,
           created_at_iso: "2024-04-15T00:00:00Z",
           created_at_epoch_ms: new Date("2024-04-15T00:00:00Z").getTime(),
+          source: "CSWITCH",
         }
       ];
 
@@ -53,8 +54,12 @@ describe("App integration", () => {
       expect(screen.getByRole("heading", { name: /Data Sources Console/i })).toBeInTheDocument();
     });
 
-    const primaryRow = await screen.findByText("Primary feed");
-    expect(primaryRow).toBeInTheDocument();
+    const primaryRowLabel = await screen.findByText("Primary feed");
+    expect(primaryRowLabel).toBeInTheDocument();
+
+    const table = screen.getByRole("table", { name: /Data source overview/i });
+    const rows = within(table).getAllByRole("row");
+    expect(rows).toHaveLength(3); // header + two data rows
 
     const secondaryRowLabel = await screen.findByText("Secondary feed");
     expect(secondaryRowLabel).toBeInTheDocument();
@@ -65,5 +70,12 @@ describe("App integration", () => {
 
     expect(within(secondaryRow).getByText(/Raw: 1/)).toBeInTheDocument();
     expect(within(secondaryRow).getByText(/ago/)).toBeInTheDocument();
+
+    const primaryRow = primaryRowLabel.closest("tr");
+    expect(primaryRow).not.toBeNull();
+    if (!primaryRow) throw new Error("Primary row not found");
+
+    expect(within(primaryRow).getByText("CSWITCH")).toBeInTheDocument();
+    expect(screen.queryByRole("row", { name: /^CSWITCH/i })).toBeNull();
   });
 });

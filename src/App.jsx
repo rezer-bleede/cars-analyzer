@@ -248,7 +248,11 @@ export default function App() {
               rawCount += arrayPayload.length;
               arrayPayload.forEach((item) => {
                 const normalized = config.normalize ? config.normalize(item) : item;
-                if (normalized) rows.push(normalized);
+                if (!normalized) return;
+                if (normalized && typeof normalized === "object") {
+                  normalized._sourceKey = config.key;
+                }
+                rows.push(normalized);
               });
             });
 
@@ -362,26 +366,47 @@ export default function App() {
               latestMs: null,
               earliestMs: null,
               prices: [],
-              rawCount: source.rawCount || 0
+              rawCount: source.rawCount || 0,
+              datasetSources: new Set()
             });
           }
         }
 
-        for (const d of rows) {
-          const key = d.source || "primary";
+        const ensureSummaryEntry = (key, fallbackLabel = key) => {
           if (!summaryMap.has(key)) {
             summaryMap.set(key, {
               key,
-              label: key,
+              label: fallbackLabel,
               urls: [],
               listingCount: 0,
               latestMs: null,
               earliestMs: null,
               prices: [],
-              rawCount: 0
+              rawCount: 0,
+              datasetSources: new Set()
             });
           }
-          const meta = summaryMap.get(key);
+          return summaryMap.get(key);
+        };
+
+        for (const d of rows) {
+          const sourceKey = d._sourceKey && summaryMap.has(d._sourceKey)
+            ? d._sourceKey
+            : summaryMap.has(d.source)
+              ? d.source
+              : "primary";
+
+          const meta = ensureSummaryEntry(sourceKey, sourceKey);
+          if (typeof d.source === "string") {
+            const trimmedLabel = d.source.trim();
+            if (trimmedLabel) {
+              const normalizedLabel = trimmedLabel.toLowerCase();
+              const normalizedKey = String(sourceKey || "").toLowerCase();
+              if (normalizedLabel !== normalizedKey) {
+                meta.datasetSources.add(trimmedLabel);
+              }
+            }
+          }
           meta.listingCount += 1;
           if (Number.isFinite(d.created_at_epoch_ms)) {
             meta.latestMs = meta.latestMs == null ? d.created_at_epoch_ms : Math.max(meta.latestMs, d.created_at_epoch_ms);
@@ -410,6 +435,7 @@ export default function App() {
             averagePrice: Number.isFinite(average) ? average : null,
             effectiveSample: count,
             removedOutliers: removed,
+            datasetSourceLabels: Array.from(meta.datasetSources).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" })),
             freshnessLabel: Number.isFinite(meta.latestMs) ? formatRelativeTime(meta.latestMs, summaryNow) : "No timestamp",
             coverageDays: Number.isFinite(rangeMs) ? Math.max(0, Math.round(rangeMs / (24 * 60 * 60 * 1000))) : null
           };
